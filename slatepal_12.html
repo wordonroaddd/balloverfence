@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SlatePal — MLB Park &amp; Matchup Board</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --page: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --seq-100:#cde2fb; --seq-200:#9ec5f4; --seq-300:#6da7ec; --seq-400:#3987e5; --seq-500:#256abf; --seq-600:#184f95; --seq-700:#0d366b;
+    --hot: #d03b3b;          /* diverging warm pole: boosts offense */
+    --cold: #2a78d6;         /* diverging cool pole: suppresses offense */
+    --div-mid: #f0efec;
+    --good: #0ca30c;
+    --warning: #fab219;
+    --chip-bg: #f0efec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --page: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --grid: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255,255,255,0.10);
+      --seq-400:#3987e5;
+      --hot: #e66767;
+      --cold: #3987e5;
+      --div-mid: #383835;
+      --chip-bg: #262624;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--page); color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 14px; line-height: 1.45; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 20px 16px 48px; }
+  header.top { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom: 4px; }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+  h1 .sub { color: var(--text-muted); font-weight: 400; font-size: 13px; margin-left: 8px; }
+  .datebar { display:flex; align-items:center; gap:8px; margin: 10px 0 16px; }
+  .datebar button { background: var(--surface-1); border: 1px solid var(--border); color: var(--text-primary);
+    border-radius: 8px; padding: 5px 12px; font-size: 13px; cursor: pointer; }
+  .datebar button:hover { border-color: var(--baseline); }
+  .datebar .cur { font-weight: 600; font-size: 14px; min-width: 150px; text-align: center; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .tile .k { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .tile .v { font-size: 20px; font-weight: 700; margin-top: 2px; }
+  .tile .d { color: var(--text-secondary); font-size: 12px; }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+  .card:hover { border-color: var(--baseline); }
+  details.gamecard > summary { cursor: pointer; list-style: none; position: relative; padding-right: 18px; }
+  details.gamecard > summary::-webkit-details-marker { display: none; }
+  details.gamecard > summary::after { content: "▸"; position: absolute; right: 0; top: 2px;
+    color: var(--text-muted); font-size: 13px; transition: transform 0.15s; }
+  details.gamecard[open] > summary::after { transform: rotate(90deg); }
+  details.gamecard[open] > summary { margin-bottom: 8px; }
+  .minibtn { background: var(--surface-1); border: 1px solid var(--border); color: var(--text-secondary);
+    border-radius: 7px; padding: 3px 10px; font-size: 12px; cursor: pointer; font-weight: 500; }
+  .minibtn:hover { border-color: var(--baseline); color: var(--text-primary); }
+  .row1 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .matchup { font-size: 15px; font-weight: 700; }
+  .matchup .at { color: var(--text-muted); font-weight: 400; }
+  .gtime { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
+  .venue { color: var(--text-muted); font-size: 12px; margin-top: 1px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 10px; }
+  .chip { background: var(--chip-bg); border-radius: 999px; padding: 2px 10px; font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+  .chip b { color: var(--text-primary); font-weight: 600; }
+  .chip.hot b { color: var(--hot); }
+  .chip.cold b { color: var(--cold); }
+  .chip.livechip { color: var(--text-secondary); font-weight: 500; }
+  .livedot { display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--good); margin-right: 5px; vertical-align: 1px;
+    animation: livepulse 1.8s ease-in-out infinite; }
+  @keyframes livepulse { 50% { opacity: 0.35; } }
+  .finalcard { padding: 11px 16px; }
+  .finalcard .matchup { font-size: 14px; font-weight: 400; }
+  .finalcard .matchup b { font-weight: 700; }
+  .hrlist { margin-top: 8px; display: flex; flex-direction: column; gap: 4px;
+    font-size: 12.5px; color: var(--text-secondary); }
+  .meters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; margin-bottom: 10px; }
+  @media (max-width: 640px) { .meters { grid-template-columns: 1fr; } }
+  .meter { }
+  .meter .lab { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-bottom: 3px; }
+  .meter .lab b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .meter .track { height: 8px; background: var(--div-mid); border-radius: 4px; position: relative; overflow: hidden; }
+  .meter .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; }
+  .meter .tick { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--baseline); left: 50%; }
+  .pitchers { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; border-top: 1px solid var(--grid); padding-top: 10px; }
+  @media (max-width: 640px) { .pitchers { grid-template-columns: 1fr; } }
+  .pit .who { font-size: 13px; font-weight: 600; }
+  .pit .who .hand { color: var(--text-muted); font-weight: 400; }
+  .pit .line { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .pit .vuln { font-size: 12px; margin-top: 2px; }
+  .badge { display:inline-block; border-radius: 5px; padding: 0 6px; font-size: 11px; font-weight: 600; }
+  .b-hi { background: var(--hot); color: #fff; }
+  .b-md { background: var(--div-mid); color: var(--text-secondary); }
+  .b-lo { background: var(--cold); color: #fff; }
+  details.targets { margin-top: 10px; border-top: 1px solid var(--grid); padding-top: 8px; }
+  details.targets summary { cursor: pointer; font-size: 12px; color: var(--text-secondary); font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; }
+  th { text-align: left; color: var(--text-muted); font-weight: 500; padding: 3px 8px 3px 0; border-bottom: 1px solid var(--grid); }
+  td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+  td.name { color: var(--text-primary); font-weight: 600; font-variant-numeric: normal; }
+  th.num, td.num { text-align: right; }
+  details.legend { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 10px 16px; margin-bottom: 16px; }
+  details.legend summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+  details.legend[open] summary { margin-bottom: 8px; }
+  .lgd { display: grid; grid-template-columns: 130px 1fr; gap: 6px 14px; font-size: 12.5px; }
+  @media (max-width: 560px) { .lgd { grid-template-columns: 1fr; gap: 2px 0; } .lgd .term { margin-top: 8px; } }
+  .lgd .term { font-weight: 600; color: var(--text-primary); }
+  .lgd .def { color: var(--text-secondary); }
+  .lgd .rule { grid-column: 1 / -1; border-top: 1px solid var(--grid); margin: 6px 0 2px; }
+  .lgd .head { grid-column: 1 / -1; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-top: 4px; }
+  .section-h { font-size: 15px; font-weight: 700; margin: 22px 0 10px; }
+  .note { color: var(--text-muted); font-size: 12px; }
+  .status { padding: 40px 0; text-align: center; color: var(--text-secondary); }
+  .status .err { color: var(--hot); font-weight: 600; }
+  .status button { margin-top: 12px; background: var(--surface-1); border: 1px solid var(--border); color: var(--text-primary); border-radius: 8px; padding: 6px 16px; cursor: pointer; }
+  footer { margin-top: 28px; border-top: 1px solid var(--grid); padding-top: 12px; color: var(--text-muted); font-size: 11.5px; }
+  footer p { margin-bottom: 6px; }
+  #simbtn { background: var(--seq-500); color: #fff; border: none; border-radius: 8px;
+    padding: 8px 18px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  #simteam { background: var(--surface-1); border: 1px solid var(--border); color: var(--text-primary);
+    border-radius: 8px; padding: 4px 10px; font-size: 13px; }
+  .howread { background: var(--chip-bg); border-radius: 10px; padding: 10px 14px; margin-top: 10px;
+    font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; }
+  .howread b { color: var(--text-primary); }
+  .mlgame { border-top: 1px solid var(--grid); padding-top: 8px; margin-top: 8px; }
+  .mlgame:first-of-type { border-top: none; margin-top: 0; }
+  .mlhead { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .mlrow { display: grid; grid-template-columns: 1fr 84px 84px 84px; gap: 8px; align-items: stretch; margin-bottom: 6px; }
+  @media (max-width: 520px) { .mlrow { grid-template-columns: 1fr 70px 70px 70px; gap: 6px; } }
+  .mlrow.mlheader { margin-bottom: 2px; }
+  .mlrow.mlheader span { font-size: 11px; color: var(--text-muted); text-transform: uppercase;
+    letter-spacing: 0.05em; text-align: center; }
+  .mlteam { font-weight: 700; font-size: 13.5px; align-self: center; }
+  .oddcell { background: var(--chip-bg); border-radius: 8px; padding: 5px 4px; text-align: center;
+    font-size: 13px; font-variant-numeric: tabular-nums; line-height: 1.25; }
+  .oddcell small { display: block; color: var(--text-muted); font-size: 10.5px; }
+  #simbtn:hover { background: var(--seq-600); }
+  #simbtn:disabled { opacity: 0.6; cursor: default; }
+  .spin { display:inline-block; width:16px; height:16px; border:2px solid var(--grid); border-top-color: var(--seq-400); border-radius:50%; animation: sp 0.8s linear infinite; vertical-align: -3px; margin-right: 8px; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body class="viz-root">
+<div class="wrap">
+  <header class="top">
+    <h1>SlatePal<span class="sub">MLB park · weather · matchup board</span></h1>
+    <span class="note" id="updated"></span>
+  </header>
+  <div class="datebar">
+    <button id="prev" aria-label="Previous day">‹ Prev</button>
+    <span class="cur" id="curdate"></span>
+    <button id="next" aria-label="Next day">Next ›</button>
+    <button id="refresh">Refresh</button>
+    <button id="autobtn" title="Re-pull live data automatically every 3 minutes">Auto: off</button>
+    <button id="themebtn" title="Switch between light and dark mode">◐ Auto</button>
+  </div>
+  <details class="legend">
+    <summary>Legend — how to read this board</summary>
+    <div class="lgd">
+      <div class="head">The one rule</div>
+      <div class="term">100 = average</div><div class="def">Nearly every number here is an index where 100 is league average. Higher = better for hitters, lower = better for pitchers. Rough guide: 105+ is a good hitting spot, 110+ is great, under 95 leans pitcher-friendly.</div>
+
+      <div class="rule"></div><div class="head">Game cards (best hitting conditions ranked first)</div>
+      <div class="term">Total score</div><div class="def">The one number to rank games by. Mix of ballpark + weather (55%), how beatable the two pitching staffs are (30%), and how good the two offenses are (15%).</div>
+      <div class="term">Run environment</div><div class="def">How run-friendly this stadium plays <i>today</i>: the park’s history plus temperature and wind.</div>
+      <div class="term">HR environment</div><div class="def">Same idea, but for home runs. Reacts more to heat and wind — this is the number for HR bets.</div>
+      <div class="term">park run / park HR</div><div class="def">The stadium’s baseline from the last 3 seasons, before today’s weather is added.</div>
+      <div class="term">🌡 / wind / precip</div><div class="def">Forecast at first pitch. Wind <b style="color:var(--hot)">out</b> = blowing toward the fences, helps hitters. Wind <b style="color:var(--cold)">in</b> = toward home plate, helps pitchers. “Cross” ≈ neutral. “Roof closed” = weather ignored.</div>
+
+      <div class="rule"></div><div class="head">Pitchers</div>
+      <div class="term">ERA · HR/9 · K/9</div><div class="def">Runs allowed per 9 innings, homers allowed per 9, strikeouts per 9. High HR/9 + low K/9 = the guy you want your hitters facing.</div>
+      <div class="term">attack / avoid</div><div class="def">Our 0–100 “beatability” rating (50 = average pitcher). <b style="color:var(--hot)">attack</b> (58+) = target his opponents’ hitters. <b style="color:var(--cold)">avoid</b> (42 and under) = tough arm. “Small sample” = few innings this year, rating pulled toward 50.</div>
+      <div class="term">pen:</div><div class="def">Same stats for that team’s bullpen (relievers only), with its own 0–100 beatability badge. “% LHP IP” = share of relief innings thrown by lefties — matters for platoon hitters late in games.</div>
+
+      <div class="rule"></div><div class="head">Hitter targets (appear once lineups post)</div>
+      <div class="term">B / vs</div><div class="def">Which side the hitter bats from (L/R/S) and which hand the starter throws with.</div>
+      <div class="term">◆</div><div class="def">Platoon edge: lefty bat vs righty starter, righty bat vs lefty starter, or switch hitter.</div>
+      <div class="term">OPS vs SP</div><div class="def">The hitter’s actual season numbers against pitchers of the starter’s hand. (OPS: .700 ≈ average, .800 good, .900+ elite.)</div>
+      <div class="term">OPS vs Pen</div><div class="def">His expected numbers against that bullpen, blending his lefty/righty splits by how many innings the pen’s lefties vs righties throw.</div>
+      <div class="term">Target</div><div class="def">The one number to rank hitters by: today’s HR environment + how beatable the whole opposing staff is (assumes ~55% of at-bats vs the starter, ~45% vs the pen) + his matchup stats. 100 = average hitter in an average spot; 115+ is a strong play.</div>
+
+      <div class="rule"></div><div class="head">Model lines</div>
+      <div class="term">Proj score / Fair total</div><div class="def">The model’s projected final score and combined runs, from each offense’s quality vs the other side’s full staff, scaled by today’s park + weather. Compare fair total to the book’s over/under — lean over when the book is well under it.</div>
+      <div class="term">Fair ML / −1.5</div><div class="def">Break-even moneyline for each side, and the break-even price on the favorite winning by 2+ (the −1.5 run line). Same rule everywhere: the book paying <i>more</i> than fair = model value.</div>
+
+      <div class="rule"></div><div class="head">Home run simulator</div>
+      <div class="term">HR prob</div><div class="def">Chance the hitter homers at least once today, from 10,000 simulated games. Typical everyday hitter ≈ 8–12%; elite sluggers in great spots reach 25%+.</div>
+      <div class="term">Fair odds</div><div class="def"><b>Calculated from the simulation, not pulled from any sportsbook.</b> It’s the break-even price for the simulated probability (20% ≈ +400, 12% ≈ +733). Compare it to your book: if they offer <i>longer</i> odds than fair, the model sees value; shorter means no edge.</div>
+      <div class="term">HR·xHR</div><div class="def">Actual homers · Statcast <i>expected</i> homers, based on how hard and far he’s actually hitting the ball (park-neutral). The sim scales each hitter’s rate by xHR-vs-HR: an unlucky crusher (xHR higher, ↑) gets boosted, a lucky wall-scraper (↓) gets discounted. Capped so it can’t more than roughly ±40% a rate.</div>
+      <div class="term">Slot / *</div><div class="def">Lineup position (higher slots bat more often). * = lineup not posted yet, so the sim used the team’s most-used players in projected order.</div>
+      <div class="term">LIVE rows</div><div class="def">That game is in progress — the chance covers only the <i>rest</i> of the game (fewer at-bats left, and bullpen arms more likely), so live numbers run lower than pre-game ones.</div>
+      <div class="term">Report card</div><div class="def">Once games finish, the model grades itself: every homer actually hit, what chance the model gave that hitter before the game, and whether homer-hitters rated above the day’s average. One day is noise — judge it over weeks.</div>
+    </div>
+  </details>
+  <div id="app"><div class="status"><span class="spin"></span>Loading today’s slate…</div></div>
+  <footer>
+    <p><b>Model details:</b> wind is decomposed against each park’s center-field bearing (from MLB venue data); beatability blends HR/9, K/9 and ERA vs league average, regressed for small samples; game scores weight starter 60% / bullpen 40%; hitter splits under 40 PA fall back to overall OPS. Full explanations are in the Legend above.</p>
+    <p><b>Data:</b> MLB Stats API (schedule, probables, lineups, player stats, venue coordinates/orientation/elevation), Open-Meteo (hourly forecast), and Baseball Savant (Statcast expected home runs). Park factors are embedded editable constants (Statcast 3-yr style, 100 = neutral).</p>
+    <p><b>Recreational use only.</b> This is a descriptive environment model, not a projection system or betting advice. It knows nothing about odds, injuries, bullpens, or lineups beyond what’s posted. Please gamble responsibly.</p>
+  </footer>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   SlatePal — all data fetched client-side when the page opens.
+   APIs used (both CORS-open, no keys):
+     statsapi.mlb.com  — schedule, probables, lineups, stats, venues
+     api.open-meteo.com — hourly forecast at each ballpark
+   ============================================================ */
+
+/* ---------- Editable constants ---------- */
+
+// League baselines (2025-26 era; tweak as offense drifts)
+const LG = { HR9: 1.15, K9: 8.6, ERA: 4.10, OPS: 0.715, HRPA: 0.031 };
+
+// Expected plate appearances by lineup slot (1-9), away team; home gets ~0.12 fewer
+const EXP_PA_AWAY = [4.65, 4.55, 4.44, 4.33, 4.23, 4.12, 4.01, 3.90, 3.77];
+const SIM_N = 10000;
+
+// Park factors, Statcast-style 3-yr rolling, 100 = neutral.
+// Keyed by MLB venue id. run = runs factor, hr = home-run factor.
+// roof: "none" | "retract" | "dome"
+const PARKS = {
+  19:   { run: 112, hr: 110, roof: "none"    }, // Coors Field
+  3:    { run: 107, hr:  96, roof: "none"    }, // Fenway Park
+  2602: { run: 104, hr: 131, roof: "none"    }, // Great American Ball Park
+  15:   { run: 103, hr:  97, roof: "retract" }, // Chase Field
+  7:    { run: 102, hr:  92, roof: "none"    }, // Kauffman Stadium
+  2529: { run: 101, hr: 103, roof: "none"    }, // Sutter Health Park (ATH)
+  2681: { run: 101, hr: 113, roof: "none"    }, // Citizens Bank Park
+  3313: { run: 100, hr: 117, roof: "none"    }, // Yankee Stadium
+  4:    { run: 100, hr: 111, roof: "none"    }, // Rate Field
+  14:   { run: 100, hr: 108, roof: "retract" }, // Rogers Centre
+  4705: { run: 100, hr: 106, roof: "none"    }, // Truist Park
+  17:   { run: 100, hr: 102, roof: "none"    }, // Wrigley Field
+  5:    { run: 100, hr: 100, roof: "none"    }, // Progressive Field
+  3312: { run:  99, hr: 100, roof: "none"    }, // Target Field
+  2:    { run:  99, hr: 105, roof: "none"    }, // Camden Yards
+  1:    { run:  99, hr: 106, roof: "none"    }, // Angel Stadium
+  2392: { run:  99, hr: 106, roof: "retract" }, // Daikin Park (HOU)
+  32:   { run:  99, hr: 108, roof: "retract" }, // American Family Field
+  5325: { run:  99, hr: 102, roof: "retract" }, // Globe Life Field
+  3309: { run: 100, hr: 104, roof: "none"    }, // Nationals Park
+  22:   { run:  98, hr: 112, roof: "none"    }, // Dodger Stadium
+  31:   { run:  98, hr:  90, roof: "none"    }, // PNC Park
+  2889: { run:  97, hr:  92, roof: "none"    }, // Busch Stadium
+  2394: { run:  97, hr:  95, roof: "none"    }, // Comerica Park
+  4169: { run:  97, hr:  90, roof: "retract" }, // loanDepot park
+  3289: { run:  97, hr:  99, roof: "none"    }, // Citi Field
+  2680: { run:  96, hr: 100, roof: "none"    }, // Petco Park
+  2395: { run:  96, hr:  85, roof: "none"    }, // Oracle Park
+  680:  { run:  92, hr:  95, roof: "retract" }, // T-Mobile Park (canopy)
+  12:   { run:  96, hr:  95, roof: "dome"    }, // Tropicana Field
+  2523: { run: 102, hr: 110, roof: "none"    }, // Steinbrenner Field
+};
+
+// Weather sensitivity (index points)
+const W = {
+  tempRunPerF: 0.12,   // per °F above/below 70
+  tempHrPerF:  0.25,
+  windRunPerMph: 0.45, // per mph of out/in component (capped)
+  windHrPerMph:  0.90,
+  windCapMph: 14,
+};
+
+/* ---------- Small utils ---------- */
+const $ = (s, el=document) => el.querySelector(s);
+const fmt1 = x => (Math.round(x*10)/10).toFixed(1);
+const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function getJSON(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${r.status} ${url}`);
+  return r.json();
+}
+
+/* ---------- Scoring (pure functions) ---------- */
+
+// Wind component blowing OUT toward CF (+) or IN (−), mph.
+// windFromDeg: meteorological (direction wind comes FROM).
+// azimuth: bearing home plate → center field, degrees from north.
+function windOutComponent(windFromDeg, speedMph, azimuthDeg) {
+  if (windFromDeg == null || azimuthDeg == null) return 0;
+  const windToDeg = (windFromDeg + 180) % 360;
+  const diff = (windToDeg - azimuthDeg) * Math.PI / 180;
+  return Math.cos(diff) * speedMph;
+}
+
+// Weather adjustments in index points. Returns {run, hr, detail}
+function weatherAdj(wx, park, azimuth) {
+  if (!wx) return { run: 0, hr: 0, roofClosed: false, out: 0 };
+  let roofClosed = false;
+  if (park.roof === "dome") roofClosed = true;
+  if (park.roof === "retract") {
+    // heuristic: closed when uncomfortable or wet
+    if (wx.tempF < 58 || wx.tempF > 94 || wx.precipPct >= 40) roofClosed = true;
+  }
+  if (roofClosed) return { run: 0, hr: 0, roofClosed: true, out: 0 };
+  const dT = wx.tempF - 70;
+  const out = clamp(windOutComponent(wx.windFromDeg, wx.windMph, azimuth), -W.windCapMph, W.windCapMph);
+  return {
+    run: dT * W.tempRunPerF + out * W.windRunPerMph,
+    hr:  dT * W.tempHrPerF  + out * W.windHrPerMph,
+    roofClosed: false,
+    out,
+  };
+}
+
+// Share of a hitter's PAs assumed vs the starter (rest vs bullpen)
+const STARTER_SHARE = 0.55;
+// League-average share of bullpen innings thrown by lefties (fallback)
+const LG_PEN_LHP_SHARE = 0.28;
+
+// Pitcher vulnerability index, 50 = league average, higher = better for hitters.
+function pitcherVuln(stat) {
+  if (!stat) return { vuln: 50, small: true };
+  const ip = parseIP(stat.inningsPitched);
+  const hr9 = parseFloat(stat.homeRunsPer9) || LG.HR9;
+  const k9  = parseFloat(stat.strikeoutsPer9Inn) || LG.K9;
+  const era = parseFloat(stat.era) || LG.ERA;
+  let v = 50 + (hr9 - LG.HR9) * 22 + (LG.K9 - k9) * 2.5 + (era - LG.ERA) * 3.5;
+  let small = false;
+  if (ip < 30) { v = 50 + (v - 50) * (ip / 60); small = true; } // regress small samples
+  return { vuln: clamp(v, 10, 92), small };
+}
+function parseIP(ip) {
+  if (ip == null) return 0;
+  const [w, f] = String(ip).split(".");
+  return (parseInt(w) || 0) + (parseInt(f) || 0) / 3;
+}
+
+// Full-staff vulnerability: starter weighted with his own bullpen
+function staffVuln(starterVuln, penVuln) {
+  return 0.6 * starterVuln + 0.4 * (penVuln ?? 50);
+}
+
+// Game-level composite. staffAway/staffHome = staffVuln of each pitching side.
+function gameScores(park, wadj, staffAway, staffHome, teamOpsAway, teamOpsHome) {
+  const envRun = park.run + wadj.run;
+  const envHR  = park.hr  + wadj.hr;
+  const avgVuln = (staffAway + staffHome) / 2;               // 50 = avg
+  const opsIdx = ((teamOpsAway + teamOpsHome) / 2) / LG.OPS * 100; // 100 = avg
+  // Total offense score: park+weather 55%, pitching 30%, offense 15%
+  const total = 0.55 * envRun + 0.30 * (avgVuln + 50) + 0.15 * opsIdx;
+  return { envRun, envHR, total };
+}
+
+// Hitter's expected OPS vs the starter and vs the pen, using real L/R splits.
+// h: {ops, vsL:{ops,pa}, vsR:{ops,pa}}; pen: {mixL} share of LHP relief innings.
+function matchupOps(h, starterHand, pen) {
+  const use = sp => (sp && sp.pa >= 40 && sp.ops > 0) ? sp.ops : h.ops; // small-split fallback
+  const vsStarter = starterHand === "L" ? use(h.vsL) : starterHand === "R" ? use(h.vsR) : h.ops;
+  const mixL = pen?.mixL ?? LG_PEN_LHP_SHARE;
+  const vsPen = mixL * use(h.vsL) + (1 - mixL) * use(h.vsR);
+  const blended = STARTER_SHARE * vsStarter + (1 - STARTER_SHARE) * vsPen;
+  return { vsStarter, vsPen, blended };
+}
+
+/* ---------- HR Monte Carlo ---------- */
+
+// Deterministic RNG so the same slate re-simulates identically
+function mulberry32(seed) {
+  return function() {
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hashStr(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+// Hitter's HR-per-PA vs a given pitcher hand, shrunk toward his overall rate
+function hitterHRRate(h, hand) {
+  const overall = h.pa > 0 ? h.hr / h.pa : LG.HRPA;
+  const sp = hand === "L" ? h.vsL : hand === "R" ? h.vsR : null;
+  if (!sp || !sp.pa) return overall;
+  return ((sp.hr || 0) + overall * 80) / (sp.pa + 80); // 80-PA prior on the split
+}
+
+// Pitcher's HR allowed per batter faced (exact if available, else from HR/9)
+function pitcherHRperBF(stat) {
+  if (!stat) return LG.HRPA;
+  if (stat.homeRuns != null && stat.battersFaced > 0) return stat.homeRuns / stat.battersFaced;
+  const hr9 = parseFloat(stat.homeRunsPer9);
+  return hr9 ? (hr9 / 9) / 4.3 : LG.HRPA;
+}
+
+// Per-PA HR probability: batter rate × pitcher ratio × park/weather multiplier
+function hrProbPA(batterRate, pitcherRatePerBF, envHRmult) {
+  const ratio = clamp(pitcherRatePerBF / LG.HRPA, 0.5, 1.9);
+  return clamp(batterRate * ratio * envHRmult, 0.002, 0.15);
+}
+
+// Simulate one hitter's game SIM_N times; returns P(≥1 HR).
+// slot: 0-8 batting order; isHome shaves ~0.12 expected PA.
+function simulateHitterHR(pStarter, pPen, slot, isHome, nSims, rng) {
+  const expPA = EXP_PA_AWAY[clamp(slot, 0, 8)] - (isHome ? 0.12 : 0);
+  const base = Math.floor(expPA), frac = expPA - base;
+  let hits = 0;
+  for (let s = 0; s < nSims; s++) {
+    const pa = base + (rng() < frac ? 1 : 0);
+    for (let k = 1; k <= pa; k++) {
+      // PAs 1-2 vs starter, PA 3 usually starter, PA 4+ bullpen
+      const p = k <= 2 ? pStarter : k === 3 ? (rng() < 0.6 ? pStarter : pPen) : pPen;
+      if (rng() < p) { hits++; break; }
+    }
+  }
+  return hits / nSims;
+}
+
+/* ---------- Model lines: totals, moneylines, run lines ---------- */
+
+const LG_RPG = 4.4;      // league runs per team per game
+const MARGIN_SD = 4.0;   // stdev of MLB run differential (normal approximation)
+
+// Standard normal CDF (Abramowitz–Stegun erf approximation)
+function normCdf(z) {
+  const x = Math.abs(z) / Math.SQRT2;
+  const t = 1 / (1 + 0.3275911 * x);
+  const erf = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t
+    - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+  return z >= 0 ? (1 + erf) / 2 : (1 - erf) / 2;
+}
+
+// Expected runs for one team: league baseline × offense quality (OPS scales
+// superlinearly to runs) × how beatable the opposing staff is × park/weather.
+function expectedRuns(teamOps, oppStaffVuln, envRun) {
+  return LG_RPG * Math.pow(teamOps / LG.OPS, 1.75) * ((oppStaffVuln + 50) / 100) * (envRun / 100);
+}
+
+// Full set of model lines for a game (pre-game only — margins assume 9 innings)
+function modelLines(m) {
+  const expA = expectedRuns(m.opsA, staffVuln(m.vh.vuln, m.penH?.vuln), m.envRun);
+  const expH = expectedRuns(m.opsH, staffVuln(m.va.vuln, m.penA?.vuln), m.envRun) + 0.12; // home edge
+  const mu = expH - expA;
+  const pHome = normCdf(mu / MARGIN_SD);
+  const favHome = mu >= 0;
+  // favorite covers -1.5 when they win by 2+ (continuous approx: margin > 1.5)
+  const pFavCover = favHome ? 1 - normCdf((1.5 - mu) / MARGIN_SD) : normCdf((-1.5 - mu) / MARGIN_SD);
+  return { expA, expH, total: expA + expH, mu, pHome, favHome, pFavCover };
+}
+
+/* ---------- Statcast xHR (Baseball Savant) ---------- */
+
+// Minimal CSV parser (handles quoted fields with commas, e.g. "Alvarez, Yordan")
+function parseCSV(text) {
+  const rows = []; let cur = [], field = "", inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
+      else field += c;
+    }
+    else if (c === '"') inQ = true;
+    else if (c === ',') { cur.push(field); field = ""; }
+    else if (c === '\n' || c === '\r') {
+      if (field !== "" || cur.length) { cur.push(field); rows.push(cur); cur = []; field = ""; }
+    }
+    else field += c;
+  }
+  if (field !== "" || cur.length) { cur.push(field); rows.push(cur); }
+  return rows;
+}
+
+// Savant home-run leaderboard CSV -> { playerId: {hr, xhr} }
+function buildXHRMap(text) {
+  const rows = parseCSV(text);
+  if (rows.length < 2) return {};
+  const h = rows[0].map(s => s.trim().toLowerCase());
+  const iId = h.indexOf("player_id"), iHr = h.indexOf("hr_total"), iX = h.indexOf("xhr");
+  if (iId < 0 || iX < 0) return {};
+  const map = {};
+  for (let r = 1; r < rows.length; r++) {
+    const id = parseInt(rows[r][iId]);
+    if (!id) continue;
+    map[id] = { hr: parseFloat(rows[r][iHr]) || 0, xhr: parseFloat(rows[r][iX]) || 0 };
+  }
+  return map;
+}
+
+// Quality-of-contact multiplier: xHR vs actual HR, with a +3 prior, capped.
+// Unlucky crushers (xhr > hr) get boosted; lucky wall-scrapers get discounted.
+function xhrFactor(x) {
+  if (!x || x.hr == null) return 1;
+  return clamp((x.xhr + 3) / (x.hr + 3), 0.7, 1.4);
+}
+
+// Rest-of-game sim for live games: one blended per-PA rate, scaled remaining PAs
+function simulateRemainingHR(pEff, expPA, nSims, rng) {
+  const base = Math.floor(expPA), frac = expPA - base;
+  let hits = 0;
+  for (let s = 0; s < nSims; s++) {
+    const pa = base + (rng() < frac ? 1 : 0);
+    for (let k = 0; k < pa; k++) if (rng() < pEff) { hits++; break; }
+  }
+  return hits / nSims;
+}
+
+function fairOdds(p) {
+  if (p <= 0) return "—";
+  return p < 0.5 ? "+" + Math.round(100 * (1 - p) / p) : "-" + Math.round(100 * p / (1 - p));
+}
+
+// Hitter target score (needs posted lineup)
+function hitterScore(envHR, starterVuln, penVuln, blendedOps) {
+  const pitchVuln = STARTER_SHARE * starterVuln + (1 - STARTER_SHARE) * (penVuln ?? 50);
+  const opsIdx = (blendedOps / LG.OPS) * 100;
+  return 0.34 * envHR + 0.30 * (pitchVuln + 50) + 0.36 * opsIdx;
+}
+
+/* ---------- Data loading ---------- */
+
+// MLB's "day" runs on US Eastern time — use ET for the default date so late-night
+// west-coast viewers still see the right slate.
+function easternISODate() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+}
+const state = { date: easternISODate() };
+
+function localISODate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function shiftDate(iso, days) {
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() + days);
+  return localISODate(d);
+}
+
+async function loadSlate(dateISO) {
+  const season = dateISO.slice(0, 4);
+  const sched = await getJSON(
+    `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateISO}` +
+    `&hydrate=probablePitcher,venue(location),team,lineups,linescore,scoringplays`);
+  const games = (sched.dates?.[0]?.games) || [];
+  if (!games.length) return { games: [] };
+
+  // --- batch: probable pitcher stats ---
+  const pids = [...new Set(games.flatMap(g =>
+    [g.teams.away.probablePitcher?.id, g.teams.home.probablePitcher?.id].filter(Boolean)))];
+  const pitchers = {};
+  if (pids.length) {
+    const pd = await getJSON(
+      `https://statsapi.mlb.com/api/v1/people?personIds=${pids.join(",")}` +
+      `&hydrate=stats(group=[pitching],type=[season],season=${season})`);
+    for (const p of pd.people || []) {
+      pitchers[p.id] = {
+        name: p.fullName, hand: p.pitchHand?.code || "?",
+        stat: p.stats?.[0]?.splits?.[0]?.stat || null,
+      };
+    }
+  }
+
+  // --- batch: lineup hitter stats (if lineups posted) ---
+  const hidSet = new Set();
+  for (const g of games) {
+    for (const side of ["away", "home"])
+      for (const pl of g.lineups?.[side + "Players"] || []) hidSet.add(pl.id);
+  }
+  const hitters = {};
+  const hids = [...hidSet];
+  for (let i = 0; i < hids.length; i += 100) {
+    const chunk = hids.slice(i, i + 100);
+    const hd = await getJSON(
+      `https://statsapi.mlb.com/api/v1/people?personIds=${chunk.join(",")}` +
+      `&hydrate=stats(group=[hitting],type=[season,statSplits],sitCodes=[vl,vr],season=${season})`);
+    for (const p of hd.people || []) {
+      let season_ = {}, vsL = null, vsR = null;
+      for (const st of p.stats || []) {
+        const tname = st.type?.displayName;
+        if (tname === "season") season_ = st.splits?.[0]?.stat || {};
+        else if (tname === "statSplits") {
+          for (const sp of st.splits || []) {
+            const o = { ops: parseFloat(sp.stat?.ops) || 0, pa: sp.stat?.plateAppearances || 0,
+                        hr: sp.stat?.homeRuns || 0 };
+            if (sp.split?.code === "vl") vsL = o;
+            if (sp.split?.code === "vr") vsR = o;
+          }
+        }
+      }
+      hitters[p.id] = {
+        name: p.fullName, bat: p.batSide?.code || "?",
+        ops: parseFloat(season_.ops) || 0, hr: season_.homeRuns || 0,
+        slg: parseFloat(season_.slg) || 0, pa: season_.plateAppearances || 0,
+        vsL, vsR,
+      };
+    }
+  }
+
+  // --- bullpen profile per team: relief split + L/R innings mix from roster ---
+  const teamIds = [...new Set(games.flatMap(g => [g.teams.away.team.id, g.teams.home.team.id]))];
+  const pens = {};   // teamId -> {stat, vuln, mixL}
+  const rosterP = {}; // teamId -> [pitcher person ids]
+  const rosterH = {}; // teamId -> [position player ids]
+  await Promise.all(teamIds.map(async id => {
+    try {
+      const rs = await getJSON(
+        `https://statsapi.mlb.com/api/v1/teams/${id}/stats?stats=statSplits&group=pitching&sitCodes=rp&season=${season}`);
+      const st = rs.stats?.[0]?.splits?.[0]?.stat;
+      if (st) pens[id] = { stat: st, vuln: pitcherVuln(st).vuln, mixL: null };
+    } catch (e) { /* pen optional */ }
+    try {
+      const rr = await getJSON(`https://statsapi.mlb.com/api/v1/teams/${id}/roster?rosterType=active`);
+      rosterP[id] = (rr.roster || []).filter(p => p.position?.code === "1").map(p => p.person.id);
+      rosterH[id] = (rr.roster || []).filter(p => p.position?.code !== "1").map(p => p.person.id);
+    } catch (e) { /* mix optional */ }
+  }));
+  // batch roster pitchers to get hand + starter/reliever classification
+  const allRp = [...new Set(Object.values(rosterP).flat())];
+  const rpInfo = {};
+  for (let i = 0; i < allRp.length; i += 100) {
+    try {
+      const rd = await getJSON(
+        `https://statsapi.mlb.com/api/v1/people?personIds=${allRp.slice(i, i + 100).join(",")}` +
+        `&hydrate=stats(group=[pitching],type=[season],season=${season})`);
+      for (const p of rd.people || []) {
+        const s = p.stats?.[0]?.splits?.[0]?.stat || {};
+        rpInfo[p.id] = { hand: p.pitchHand?.code, g: s.gamesPlayed || 0,
+          gs: s.gamesStarted || 0, ip: parseIP(s.inningsPitched) };
+      }
+    } catch (e) { break; }
+  }
+  for (const id of teamIds) {
+    if (!pens[id]) continue;
+    let ipL = 0, ipR = 0;
+    for (const pid of rosterP[id] || []) {
+      const p = rpInfo[pid];
+      if (!p || !p.g || p.gs / p.g >= 0.34) continue; // relievers only
+      if (p.hand === "L") ipL += p.ip; else ipR += p.ip;
+    }
+    pens[id].mixL = (ipL + ipR) > 0 ? ipL / (ipL + ipR) : null;
+  }
+
+  // --- team offense (season hitting) ---
+  const teamOps = {};
+  try {
+    const td = await getJSON(
+      `https://statsapi.mlb.com/api/v1/teams/stats?sportIds=1&group=hitting&stats=season&season=${season}`);
+    for (const sp of td.stats?.[0]?.splits || []) {
+      if (sp.team?.id) teamOps[sp.team.id] = parseFloat(sp.stat?.ops) || LG.OPS;
+    }
+  } catch (e) { /* fall back to league average */ }
+
+  // --- weather per venue at first pitch ---
+  const wxByGame = {};
+  await Promise.all(games.map(async g => {
+    const loc = g.venue?.location;
+    const lat = loc?.defaultCoordinates?.latitude, lon = loc?.defaultCoordinates?.longitude;
+    if (lat == null) return;
+    const gd = new Date(g.gameDate);
+    const dayISO = g.gameDate.slice(0, 10);
+    try {
+      const wd = await getJSON(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+        `&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,wind_speed_10m,wind_direction_10m` +
+        `&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=UTC` +
+        `&start_date=${dayISO}&end_date=${shiftDate(dayISO, 1)}`);
+      const key = g.gameDate.slice(0, 13) + ":00";
+      const idx = wd.hourly.time.indexOf(key);
+      if (idx >= 0) wxByGame[g.gamePk] = {
+        tempF: wd.hourly.temperature_2m[idx],
+        humid: wd.hourly.relative_humidity_2m[idx],
+        precipPct: wd.hourly.precipitation_probability[idx],
+        windMph: wd.hourly.wind_speed_10m[idx],
+        windFromDeg: wd.hourly.wind_direction_10m[idx],
+      };
+    } catch (e) { /* weather optional */ }
+  }));
+
+  // --- projected regulars for games without posted lineups (top 9 by PA) ---
+  const teamRegulars = {};
+  const noLineup = new Set();
+  for (const g of games) {
+    if (!g.lineups?.awayPlayers?.length) noLineup.add(g.teams.away.team.id);
+    if (!g.lineups?.homePlayers?.length) noLineup.add(g.teams.home.team.id);
+  }
+  const extraIds = [...new Set([...noLineup].flatMap(id => rosterH[id] || []))].filter(id => !hitters[id]);
+  for (let i = 0; i < extraIds.length; i += 100) {
+    try {
+      const hd = await getJSON(
+        `https://statsapi.mlb.com/api/v1/people?personIds=${extraIds.slice(i, i + 100).join(",")}` +
+        `&hydrate=stats(group=[hitting],type=[season,statSplits],sitCodes=[vl,vr],season=${season})`);
+      for (const p of hd.people || []) {
+        let season_ = {}, vsL = null, vsR = null;
+        for (const st of p.stats || []) {
+          if (st.type?.displayName === "season") season_ = st.splits?.[0]?.stat || {};
+          else if (st.type?.displayName === "statSplits") {
+            for (const sp of st.splits || []) {
+              const o = { ops: parseFloat(sp.stat?.ops) || 0, pa: sp.stat?.plateAppearances || 0,
+                          hr: sp.stat?.homeRuns || 0 };
+              if (sp.split?.code === "vl") vsL = o;
+              if (sp.split?.code === "vr") vsR = o;
+            }
+          }
+        }
+        hitters[p.id] = { name: p.fullName, bat: p.batSide?.code || "?",
+          ops: parseFloat(season_.ops) || 0, hr: season_.homeRuns || 0,
+          slg: parseFloat(season_.slg) || 0, pa: season_.plateAppearances || 0, vsL, vsR };
+      }
+    } catch (e) { break; }
+  }
+  for (const tid of noLineup) {
+    teamRegulars[tid] = (rosterH[tid] || []).filter(id => hitters[id] && hitters[id].pa >= 100)
+      .sort((a, b) => hitters[b].pa - hitters[a].pa).slice(0, 9);
+  }
+
+  // --- Statcast xHR (Baseball Savant; optional — sim falls back to raw rates) ---
+  let xhrMap = {};
+  try {
+    const resp = await fetch(`https://baseballsavant.mlb.com/leaderboard/home-runs?year=${season}&csv=true`);
+    if (resp.ok) xhrMap = buildXHRMap(await resp.text());
+  } catch (e) { /* statcast optional */ }
+
+  return { games, pitchers, hitters, teamOps, wxByGame, pens, teamRegulars, xhrMap };
+}
+
+/* ---------- Assemble + render ---------- */
+
+function buildModel(data) {
+  const out = [];
+  for (const g of data.games) {
+    const vid = g.venue?.id;
+    const park = PARKS[vid] || { run: 100, hr: 100, roof: "none", unknown: true };
+    const loc = g.venue?.location || {};
+    const azimuth = loc.azimuthAngle != null ? parseFloat(loc.azimuthAngle) : null;
+    const wx = data.wxByGame[g.gamePk];
+    const wadj = weatherAdj(wx, park, azimuth);
+
+    const pa = data.pitchers[g.teams.away.probablePitcher?.id];
+    const ph = data.pitchers[g.teams.home.probablePitcher?.id];
+    const va = pitcherVuln(pa?.stat), vh = pitcherVuln(ph?.stat);
+    const penA = data.pens?.[g.teams.away.team.id] || null;
+    const penH = data.pens?.[g.teams.home.team.id] || null;
+    const opsA = data.teamOps[g.teams.away.team.id] || LG.OPS;
+    const opsH = data.teamOps[g.teams.home.team.id] || LG.OPS;
+    const sc = gameScores(park, wadj,
+      staffVuln(va.vuln, penA?.vuln), staffVuln(vh.vuln, penH?.vuln), opsA, opsH);
+
+    // hitter targets: away hitters face home starter + home pen, and vice versa
+    const targets = [];
+    for (const [side, oppP, oppV, oppPen] of [["away", ph, vh, penH], ["home", pa, va, penA]]) {
+      for (const pl of g.lineups?.[side + "Players"] || []) {
+        const h = data.hitters[pl.id];
+        if (!h || h.pa < 100) continue;
+        const platoon = oppP && (
+          (h.bat === "L" && oppP.hand === "R") || (h.bat === "R" && oppP.hand === "L") || h.bat === "S");
+        const mo = matchupOps(h, oppP?.hand, oppPen);
+        targets.push({
+          ...h, team: g.teams[side].team.abbreviation || g.teams[side].team.name,
+          opp: oppP?.name || "TBD", oppHand: oppP?.hand || "?", platoon,
+          vsStarter: mo.vsStarter, vsPen: mo.vsPen,
+          score: hitterScore(sc.envHR, oppV.vuln, oppPen?.vuln, mo.blended),
+        });
+      }
+    }
+    targets.sort((a, b) => b.score - a.score);
+
+    // sim context: each side's batting order (posted lineup or projected regulars)
+    const simSides = [];
+    for (const [side, oppP, oppPen] of [["away", ph, penH], ["home", pa, penA]]) {
+      const posted = (g.lineups?.[side + "Players"] || []).map(p => p.id);
+      const ids = posted.length ? posted : (data.teamRegulars?.[g.teams[side].team.id] || []);
+      simSides.push({
+        side, isHome: side === "home", projected: !posted.length, ids,
+        team: g.teams[side].team.abbreviation || g.teams[side].team.name,
+        starterHand: oppP?.hand, starterStat: oppP?.stat || null,
+        penStat: oppPen?.stat || null, penMixL: oppPen?.mixL ?? LG_PEN_LHP_SHARE,
+      });
+    }
+
+    // game state: pre / live / final
+    const abs = g.status?.abstractGameState;
+    const gstate = abs === "Final" ? "final" : abs === "Live" ? "live" : "pre";
+    const ls = g.linescore;
+    const score = ls ? { away: ls.teams?.away?.runs ?? 0, home: ls.teams?.home?.runs ?? 0,
+      inning: ls.currentInning, half: ls.inningState } : null;
+    const hrPlays = (g.scoringPlays || [])
+      .filter(p => p.result?.event === "Home Run")
+      .map(p => ({ desc: (p.result.description || "").split(". ")[0] + ".",
+                   inning: p.about?.inning, half: p.about?.halfInning,
+                   batterId: p.matchup?.batter?.id || null,
+                   batterName: p.matchup?.batter?.fullName || null }));
+
+    out.push({ g, park, parkUnknown: !!park.unknown, wx, wadj, azimuth,
+      pa, ph, va, vh, penA, penH, opsA, opsH, ...sc, targets, simSides,
+      gstate, score, hrPlays });
+  }
+  // upcoming & live games ranked by score; finished games go last
+  out.sort((a, b) => (a.gstate === "final") - (b.gstate === "final") || b.total - a.total);
+  return out;
+}
+
+function seqColor(v) { // sequential blue by index value (higher = darker)
+  const stops = [[92,"var(--seq-100)"],[97,"var(--seq-200)"],[101,"var(--seq-300)"],[105,"var(--seq-400)"],[110,"var(--seq-500)"],[116,"var(--seq-600)"],[999,"var(--seq-700)"]];
+  for (const [t, c] of stops) if (v < t) return c;
+  return "var(--seq-700)";
+}
+function meterHTML(label, val, min, max, title) {
+  const pct = clamp((val - min) / (max - min) * 100, 2, 100);
+  return `<div class="meter" title="${esc(title)}">
+    <div class="lab"><span>${esc(label)}</span><b>${fmt1(val)}</b></div>
+    <div class="track"><div class="tick" style="left:${clamp((100-min)/(max-min)*100,0,100)}%"></div>
+      <div class="fill" style="width:${pct}%;background:${seqColor(val)}"></div></div>
+  </div>`;
+}
+function vulnBadge(v, small) {
+  const cls = v.vuln >= 58 ? "b-hi" : v.vuln <= 42 ? "b-lo" : "b-md";
+  const word = v.vuln >= 58 ? "attack" : v.vuln <= 42 ? "avoid" : "neutral";
+  return `<span class="badge ${cls}">${word} ${Math.round(v.vuln)}</span>${small ? ' <span class="note">(small sample)</span>' : ""}`;
+}
+function windChip(m) {
+  if (!m.wx) return `<span class="chip">weather n/a</span>`;
+  if (m.wadj.roofClosed) return `<span class="chip">roof closed · weather neutral</span>`;
+  const o = m.wadj.out;
+  const dir = o > 2 ? "out" : o < -2 ? "in" : "cross";
+  const cls = o > 2 ? "hot" : o < -2 ? "cold" : "";
+  const arrow = o > 2 ? "↗" : o < -2 ? "↙" : "↔";
+  return `<span class="chip ${cls}">${arrow} wind <b>${Math.round(Math.abs(o))} mph ${dir}</b> (${Math.round(m.wx.windMph)} total)</span>`;
+}
+function penLine(pen) {
+  if (!pen?.stat) return `<div class="line">bullpen: n/a</div>`;
+  const s = pen.stat;
+  const mix = pen.mixL != null ? ` · ${Math.round(pen.mixL * 100)}% LHP IP` : "";
+  const cls = pen.vuln >= 58 ? "b-hi" : pen.vuln <= 42 ? "b-lo" : "b-md";
+  return `<div class="line">pen: ${s.era} ERA · ${s.homeRunsPer9} HR/9 · ${s.strikeoutsPer9Inn} K/9${mix}
+    <span class="badge ${cls}">${Math.round(pen.vuln)}</span></div>`;
+}
+function pitcherHTML(label, p, v, pen) {
+  if (!p) return `<div class="pit"><div class="who">${label}: TBD</div>${penLine(pen)}</div>`;
+  const s = p.stat || {};
+  return `<div class="pit">
+    <div class="who">${esc(label)}: ${esc(p.name)} <span class="hand">(${esc(p.hand)}HP)</span></div>
+    <div class="line">${s.era ? `${s.era} ERA · ${s.homeRunsPer9} HR/9 · ${s.strikeoutsPer9Inn} K/9 · ${s.inningsPitched} IP` : "no season stats"}</div>
+    <div class="vuln">hitters vs him: ${vulnBadge(v, v.small)}</div>
+    ${penLine(pen)}
+  </div>`;
+}
+
+/* ---------- HR simulation runner ---------- */
+
+function runHRSim(model, hitters, dateISO, xhrMap = {}) {
+  const rng = mulberry32(hashStr(dateISO));
+  const results = [];
+  for (const m of model) {
+    const envHRmult = clamp(m.envHR / 100, 0.6, 1.6);
+    const gameLabel = `${m.g.teams.away.team.abbreviation || "AWY"}@${m.g.teams.home.team.abbreviation || "HME"}`;
+    // pre: full-game forecast · live: rest-of-game forecast · final: retro full-game
+    // (final-mode results feed the report card, not the picks table)
+    const mode = m.gstate;
+    const inning = m.score?.inning || 1;
+    const remFrac = mode === "live" ? clamp((9 - inning + 1) / 9, 0.08, 1) : 1;
+    const starterW = mode === "live" ? clamp((5 - inning) / 5, 0, 1) : null;
+    for (const s of m.simSides) {
+      const spRate = pitcherHRperBF(s.starterStat);
+      const penRate = pitcherHRperBF(s.penStat);
+      s.ids.forEach((id, slot) => {
+        const h = hitters[id];
+        if (!h || h.pa < 100 || slot > 8) return;
+        // Statcast quality-of-contact adjustment (1.0 when no xHR data)
+        const xf = xhrFactor(xhrMap[id]);
+        const rateVsSP = hitterHRRate(h, s.starterHand) * xf;
+        // vs pen: blend his L/R rates by the pen's lefty/righty innings mix
+        const rateVsPen = (s.penMixL * hitterHRRate(h, "L") + (1 - s.penMixL) * hitterHRRate(h, "R")) * xf;
+        const pSP = hrProbPA(rateVsSP, spRate, envHRmult);
+        const pPen = hrProbPA(rateVsPen, penRate, envHRmult);
+        let p;
+        if (mode === "live") {
+          const expPA = (EXP_PA_AWAY[clamp(slot, 0, 8)] - (s.isHome ? 0.12 : 0)) * remFrac;
+          const pEff = starterW * pSP + (1 - starterW) * pPen;
+          p = simulateRemainingHR(pEff, expPA, SIM_N, rng);
+        } else {
+          p = simulateHitterHR(pSP, pPen, slot, s.isHome, SIM_N, rng);
+        }
+        results.push({ name: h.name, bat: h.bat, team: s.team, game: gameLabel, slot: slot + 1,
+          projected: s.projected, p, envHR: m.envHR, spHand: s.starterHand || "?",
+          seasonHR: h.hr, xhr: xhrMap[id]?.xhr ?? null, xf, pPA: pSP, mode, pid: id });
+      });
+    }
+  }
+  results.sort((a, b) => b.p - a.p);
+  return results;
+}
+
+// Report card: score the model's full-game (pre-game basis) predictions against
+// the homers actually hit in finished games.
+function buildReportCard(model, results) {
+  const finals = model.filter(m => m.gstate === "final");
+  if (!finals.length) return null;
+  const retro = results.filter(r => r.mode === "final").sort((a, b) => b.p - a.p);
+  const byPid = {};
+  retro.forEach((r, i) => { byPid[r.pid] = { ...r, rank: i + 1 }; });
+  const rows = [];
+  for (const m of finals) {
+    const gameLabel = `${m.g.teams.away.team.abbreviation || ""}@${m.g.teams.home.team.abbreviation || ""}`;
+    for (const p of m.hrPlays) {
+      const r = p.batterId != null ? byPid[p.batterId] : null;
+      rows.push({ game: gameLabel, name: p.batterName || (p.desc.split(" homers")[0]), inning: p.inning,
+        modeled: !!r, p: r?.p ?? null, rank: r?.rank ?? null, of: retro.length });
+    }
+  }
+  const modeled = rows.filter(r => r.modeled);
+  const avgHitterP = modeled.length ? modeled.reduce((a, r) => a + r.p, 0) / modeled.length : 0;
+  const avgAllP = retro.length ? retro.reduce((a, r) => a + r.p, 0) / retro.length : 0;
+  const top20Hits = modeled.filter(r => r.rank <= 20).length;
+  return { rows, totalHR: rows.length, modeledHR: modeled.length, avgHitterP, avgAllP, top20Hits, pool: retro.length };
+}
+
+function simTier(p) {
+  if (p >= 0.22) return ["🔥 hot", "b-hi"];
+  if (p >= 0.16) return ["strong", "b-hi"];
+  if (p >= 0.10) return ["solid", "b-md"];
+  return ["long shot", "b-md"];
+}
+
+function ordinal(n) { const s = ["th","st","nd","rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+
+function renderSimResults(allResults, team = "ALL") {
+  const out = $("#simout");
+  const results = allResults.filter(r => r.mode !== "final"); // picks table: upcoming + live only
+  if (!results.length) { out.innerHTML = `<p class="note" style="margin-top:8px">All of today’s games are finished — see the report card below for how the model did.</p>`; return; }
+  const teams = [...new Set(results.map(r => r.team))].sort();
+  // teams on the slate whose games already started or finished — shown disabled so
+  // the dropdown always lists the whole slate with a reason instead of just vanishing
+  const played = [];
+  for (const m of (state.model || [])) {
+    if (m.gstate === "pre") continue;
+    for (const side of ["away", "home"]) {
+      const ab = m.g.teams[side].team.abbreviation || m.g.teams[side].team.name;
+      if (!teams.includes(ab)) played.push({ ab, why: m.gstate === "final" ? "final — see report card" : "in progress" });
+    }
+  }
+  played.sort((a, b) => a.ab.localeCompare(b.ab));
+  const shown = team === "ALL" ? results.slice(0, 20) : results.filter(r => r.team === team);
+  const anyProjected = shown.some(r => r.projected);
+  out.innerHTML = `
+    <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+      <label class="note" for="simteam"><b>Team:</b></label>
+      <select id="simteam">
+        <option value="ALL"${team === "ALL" ? " selected" : ""}>All teams (top 20)</option>
+        ${teams.map(t => `<option value="${esc(t)}"${t === team ? " selected" : ""}>${esc(t)}</option>`).join("")}
+        ${played.length ? `<option disabled>──────────</option>` : ""}
+        ${played.map(p => `<option disabled>${esc(p.ab)} — ${p.why}</option>`).join("")}
+      </select>
+      <span class="note">${team === "ALL" ? `showing top 20 of ${results.length} hitters simulated` : `all ${shown.length} ${esc(team)} hitters, slate rank shown`}</span>
+    </div>
+    ${shown.length ? (() => {
+      const ex = shown[0];
+      const rk = results.indexOf(ex) + 1;
+      const better = "+" + Math.round(100 * (1 - ex.p) / ex.p * 1.2);
+      return `<div class="howread"><b>How to read the top row:</b> ${esc(ex.name)} bats ${ordinal(ex.slot)} for ${esc(ex.team)}
+        against a ${ex.spHand === "L" ? "lefty" : ex.spHand === "R" ? "righty" : "TBD"} starter. He homered in
+        <b>${(ex.p * 100).toFixed(1)}%</b> of his simulated games${ex.mode === "live" ? " <b>from this point on</b> (his game is live)" : ""} — about 1 in ${Math.max(2, Math.round(1 / ex.p))}.
+        A sportsbook price of <b>${fairOdds(ex.p)}</b> would be exactly break-even, so if your book pays
+        <b>more</b> (longer odds, like ${better}), the model sees value — if it pays less, skip.
+        The <b>#${rk}</b> is his rank among all ${results.length} hitters on today’s slate.</div>`;
+    })() : ""}
+    <table style="margin-top:8px"><thead><tr>
+      <th title="Rank across the whole slate">Rank</th><th>Hitter</th><th>Game</th>
+      <th class="num" title="Batting order position — higher up bats more often">Bats</th>
+      <th title="Starting pitcher's throwing hand">Starter</th>
+      <th class="num" title="Actual homers · Statcast expected homers">HR · xHR</th>
+      <th class="num" title="Chance of at least one homer today">HR chance</th>
+      <th class="num" title="Break-even sportsbook price for that chance — not a real line">Fair price</th><th></th></tr></thead>
+    <tbody>${shown.map(r => {
+      const [word, cls] = simTier(r.p);
+      const luck = r.xhr == null ? "" : r.xf > 1.05 ? ' <span style="color:var(--hot)" title="unlucky — boosted">↑</span>'
+        : r.xf < 0.95 ? ' <span style="color:var(--cold)" title="lucky — discounted">↓</span>' : "";
+      return `<tr><td>#${results.indexOf(r) + 1}</td><td class="name">${esc(r.name)}${r.projected ? " *" : ""}${r.mode === "live" ? ' <span class="livedot" title="Game in progress — chance covers the rest of the game only"></span>' : ""}</td>
+        <td>${esc(r.game)}</td><td class="num">${ordinal(r.slot)}</td><td>${r.spHand === "L" ? "Lefty" : r.spHand === "R" ? "Righty" : "TBD"}</td>
+        <td class="num">${r.seasonHR} · ${r.xhr != null ? r.xhr.toFixed(0) : "—"}${luck}</td>
+        <td class="num"><b>${(r.p * 100).toFixed(1)}%</b> <span class="note">(1 in ${Math.max(2, Math.round(1 / r.p))})</span></td>
+        <td class="num">${fairOdds(r.p)}</td>
+        <td><span class="badge ${cls}">${word}</span></td></tr>`;
+    }).join("")}</tbody></table>
+    <p class="note" style="margin-top:8px">${SIM_N.toLocaleString()} simulated games per hitter.
+    ${results.some(r => r.mode === "live") ? 'Rows with a green dot are in-progress games — the chance covers the <b>rest</b> of that game (fewer at-bats left, bullpen arms likelier).' : ""}
+    ${results.some(r => r.xhr != null)
+      ? "HR·xHR = actual homers · Statcast expected homers; <span style=\"color:var(--hot)\">↑</span> = under-rewarded contact (rate boosted), <span style=\"color:var(--cold)\">↓</span> = over-rewarded (discounted)."
+      : "Statcast xHR data didn’t load this time — using actual HR rates only."}
+    ${anyProjected ? "* projected lineup (not posted yet — based on most-used players)." : ""}
+    <b>Fair odds are calculated from the simulation — they are not sportsbook lines.</b>
+    They’re the break-even price for the simulated probability: if your book offers <i>longer</i> odds than fair, the model sees value; <i>shorter</i>, no edge.
+    Re-running gives identical results for the same slate; hit Refresh first to pick up newly posted lineups.</p>`;
+  $("#simteam").onchange = e => { state.simTeam = e.target.value; renderSimResults(allResults, e.target.value); };
+}
+
+function renderReportCard(rc) {
+  const el = $("#rcout");
+  if (!el || !rc) return;
+  const beat = rc.avgHitterP > rc.avgAllP;
+  el.innerHTML = `<div class="card">
+    <div style="font-weight:700; font-size:13px; margin-bottom:6px">📋 Model report card — finished games</div>
+    <p class="note">Scores the model’s <i>full-game</i> predictions (same math as pre-game) against what actually happened.</p>
+    <div class="tiles" style="margin:10px 0">
+      <div class="tile"><div class="k">HRs hit</div><div class="v">${rc.totalHR}</div><div class="d">${rc.modeledHR} by modeled hitters</div></div>
+      <div class="tile"><div class="k">From model top 20</div><div class="v">${rc.top20Hits}</div><div class="d">of ${rc.modeledHR} modeled HRs</div></div>
+      <div class="tile"><div class="k">Avg chance of HR hitters</div><div class="v">${(rc.avgHitterP * 100).toFixed(1)}%</div><div class="d">vs ${(rc.avgAllP * 100).toFixed(1)}% for all ${rc.pool} hitters</div></div>
+    </div>
+    <p class="note">${beat
+      ? "Hitters who homered were rated <b>above average</b> by the model before the games — the signal is pointing the right way."
+      : "Hitters who homered were rated at or below the model’s average today — normal on small daily samples, worth watching over weeks."}
+    One day proves nothing either way; check this over a few weeks. (Uses current season stats, so probabilities for past games carry a small hindsight bias.)</p>
+    ${rc.rows.length ? `<table><thead><tr><th>Homered</th><th>Game</th><th class="num">Inning</th><th class="num">Model chance</th><th class="num">Model rank</th></tr></thead>
+    <tbody>${rc.rows.map(r => `<tr><td class="name">${esc(r.name)}</td><td>${esc(r.game)}</td><td class="num">${r.inning || "—"}</td>
+      <td class="num">${r.modeled ? "<b>" + (r.p * 100).toFixed(1) + "%</b>" : "not modeled"}</td>
+      <td class="num">${r.modeled ? "#" + r.rank + " of " + r.of : "—"}</td></tr>`).join("")}</tbody></table>` : ""}
+  </div>`;
+}
+
+function render(model) {
+  const app = $("#app");
+  if (!model.length) {
+    app.innerHTML = `<div class="status">No MLB games on this date.</div>`;
+    return;
+  }
+  const active = model.filter(m => m.gstate !== "final");
+  const finals = model.filter(m => m.gstate === "final");
+  const upcoming = model.filter(m => m.gstate === "pre");
+  const rankPool = active.length ? active : model;
+  const best = rankPool[0];
+  const hottest = [...rankPool].sort((a,b) => b.envHR - a.envHR)[0];
+  const allTargets = active.flatMap(m => m.targets.map(t => ({...t, game: `${m.g.teams.away.team.abbreviation || ""}@${m.g.teams.home.team.abbreviation || ""}`}))).sort((a,b) => b.score - a.score).slice(0, 12);
+  const lineupsPosted = active.some(m => m.targets.length);
+
+  let html = `<div class="tiles">
+    <div class="tile"><div class="k">Games</div><div class="v">${model.length}</div><div class="d">${finals.length ? `${finals.length} final · ${model.length - finals.length} to play` : "on this slate"}</div></div>
+    <div class="tile"><div class="k">Best run env</div><div class="v">${fmt1(best.envRun)}</div><div class="d">${esc(best.g.venue.name)}</div></div>
+    <div class="tile"><div class="k">Best HR env</div><div class="v">${fmt1(hottest.envHR)}</div><div class="d">${esc(hottest.g.venue.name)}</div></div>
+    <div class="tile"><div class="k">Scale</div><div class="v">100</div><div class="d">= league average</div></div>
+  </div>`;
+
+  // HR simulator first — runs automatically for games that haven't started
+  html += `<div class="section-h" style="margin-top:4px">Home run simulator</div>
+  <div class="card">
+    <p class="note">Plays out every hitter’s game ${SIM_N.toLocaleString()} times: his HR rate vs each pitcher hand — adjusted by Statcast expected homers (xHR) — the starter’s and bullpen’s HR-allowed rates, his lineup slot, and today’s park + weather. Upcoming games get full-game odds (${upcoming.length} now); live games get rest-of-game odds (${model.filter(x => x.gstate === "live").length} now); finished games are graded in the report card below.</p>
+    <button id="simbtn" style="margin-top:8px">⚾ Re-run HR simulation</button>
+    <div id="simout"></div>
+  </div>`;
+
+  // Model lines — sportsbook-style odds board for games that haven't started
+  if (upcoming.length) {
+    html += `<div class="section-h">Model lines — totals &amp; run lines</div>
+    <div class="card">
+      <div class="row1" style="margin-bottom:8px">
+        <div class="matchup" style="font-size:13px">Fair prices for ${upcoming.length} upcoming game${upcoming.length > 1 ? "s" : ""}</div>
+        <div class="gtime">model prices, not sportsbook lines</div>
+      </div>
+      <div class="mlrow mlheader"><span></span><span>ML</span><span>Total</span><span>RL</span></div>
+      ${upcoming.map(m => {
+        const L = modelLines(m);
+        const aAb = m.g.teams.away.team.abbreviation || "AWY", hAb = m.g.teams.home.team.abbreviation || "HME";
+        const gt = new Date(m.g.gameDate).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
+        const tot = L.total.toFixed(1);
+        const row = (ab, pWin, isFav, ou) => `
+          <div class="mlrow">
+            <span class="mlteam">${esc(ab)}</span>
+            <span class="oddcell"><b>${fairOdds(pWin)}</b></span>
+            <span class="oddcell"><b>${ou}${tot}</b><small>fair</small></span>
+            <span class="oddcell"><b>${isFav ? "-1.5" : "+1.5"}</b><small>${fairOdds(isFav ? L.pFavCover : 1 - L.pFavCover)}</small></span>
+          </div>`;
+        return `<div class="mlgame">
+          <div class="mlhead">${esc(aAb)} @ ${esc(hAb)} <span class="note">· ${gt} ET · proj ${L.expA.toFixed(1)}–${L.expH.toFixed(1)}</span></div>
+          ${row(aAb, 1 - L.pHome, !L.favHome, "o")}
+          ${row(hAb, L.pHome, L.favHome, "u")}
+        </div>`;
+      }).join("")}
+      <p class="note" style="margin-top:8px">These are the model’s <b>break-even</b> prices, not real lines — at the fair total, over and under are a coin flip.
+      Book total well below fair leans over (and vice versa); a book moneyline or run line paying <i>more</i> than fair has model value.
+      Margins use a normal approximation (σ≈4 runs) — built to spot <i>big</i> gaps, not ±10¢ ones.</p>
+    </div>`;
+  }
+
+  html += `<div class="section-h" style="display:flex;justify-content:space-between;align-items:baseline">
+    <span>Games (${active.length})</span>
+    <button id="xall" class="minibtn">Expand all</button></div>`;
+
+  html += active.map((m, i) => {
+    const g = m.g;
+    const t = new Date(g.gameDate).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" }) + " ET";
+    const away = g.teams.away.team, home = g.teams.home.team;
+    const liveChip = m.gstate === "live" && m.score
+      ? `<span class="chip livechip"><span class="livedot"></span>${esc(m.score.half || "")} ${m.score.inning || ""} · ${esc(away.abbreviation || "")} ${m.score.away}–${m.score.home} ${esc(home.abbreviation || "")}</span>`
+      : "";
+    const wxChips = m.wx && !m.wadj.roofClosed
+      ? `<span class="chip">🌡 <b>${Math.round(m.wx.tempF)}°F</b></span>${windChip(m)}<span class="chip">precip <b>${m.wx.precipPct ?? 0}%</b></span>`
+      : windChip(m);
+    const roofChip = m.park.roof !== "none" && !m.wadj.roofClosed && m.wx ? `<span class="chip">roof assumed open</span>` : "";
+    const elev = m.g.venue?.location?.elevation;
+    return `<details class="card gamecard"${i === 0 ? " open" : ""}>
+      <summary>
+        <div class="row1">
+          <div>
+            <div class="matchup">#${i+1} · ${esc(away.name)} <span class="at">@</span> ${esc(home.name)}</div>
+            <div class="venue">${esc(g.venue.name)}${elev ? ` · ${elev} ft` : ""}${m.parkUnknown ? " · no park-factor data (using 100)" : ""}</div>
+          </div>
+          <div class="gtime">${liveChip}${t} · Total score <b>${fmt1(m.total)}</b></div>
+        </div>
+      </summary>
+      <div class="chips">
+        <span class="chip">park run <b>${m.park.run}</b></span>
+        <span class="chip">park HR <b>${m.park.hr}</b></span>
+        ${wxChips}${roofChip}
+      </div>
+      <div class="meters">
+        ${meterHTML("Run environment (park + weather)", m.envRun, 85, 125, "Park runs factor plus temperature and wind adjustments")}
+        ${meterHTML("HR environment (park + weather)", m.envHR, 75, 140, "Park HR factor plus temperature and wind adjustments")}
+      </div>
+      <div class="pitchers">
+        ${pitcherHTML(esc(away.abbreviation || "AWY"), m.pa, m.va, m.penA)}
+        ${pitcherHTML(esc(home.abbreviation || "HME"), m.ph, m.vh, m.penH)}
+      </div>
+      ${m.gstate === "live" && m.hrPlays.length ? `<div class="hrlist" style="border-top:1px solid var(--grid);padding-top:8px">
+        ${m.hrPlays.map(p => `<div class="hritem">💣 <span>${esc(p.desc)}</span> <span class="note">(${esc(p.half || "")} ${p.inning || ""})</span></div>`).join("")}</div>` : ""}
+      ${m.targets.length ? `<details class="targets"><summary>Hitter targets in this game (${m.targets.length})</summary>
+        <table><thead><tr><th>Hitter</th><th>Tm</th><th>B</th><th>vs</th><th class="num">OPS vs SP</th><th class="num">OPS vs Pen</th><th class="num">HR</th><th class="num">Target</th></tr></thead>
+        <tbody>${m.targets.slice(0, 9).map(h => `<tr><td class="name">${esc(h.name)}${h.platoon ? " ◆" : ""}</td><td>${esc(h.team)}</td><td>${esc(h.bat)}</td><td>${esc(h.oppHand)}HP</td><td class="num">${h.vsStarter.toFixed(3)}</td><td class="num">${h.vsPen.toFixed(3)}</td><td class="num">${h.hr}</td><td class="num"><b>${Math.round(h.score)}</b></td></tr>`).join("")}</tbody></table>
+        <div class="note">◆ platoon advantage vs starter · OPS vs SP uses the hitter's real split vs the starter's hand; OPS vs Pen weights his L/R splits by that bullpen's lefty/righty innings mix · Target: 100 ≈ average hitter, average park, average staff</div>
+      </details>` : ""}
+    </details>`;
+  }).join("");
+
+  if (allTargets.length) {
+    html += `<div class="section-h">Top hitter targets across the slate</div>
+    <div class="card"><table><thead><tr><th>Hitter</th><th>Game</th><th>B</th><th>vs</th><th class="num">OPS vs SP</th><th class="num">OPS vs Pen</th><th class="num">HR</th><th class="num">Target</th></tr></thead>
+    <tbody>${allTargets.map(h => `<tr><td class="name">${esc(h.name)}${h.platoon ? " ◆" : ""}</td><td>${esc(h.game)}</td><td>${esc(h.bat)}</td><td>${esc(h.oppHand)}HP</td><td class="num">${h.vsStarter.toFixed(3)}</td><td class="num">${h.vsPen.toFixed(3)}</td><td class="num">${h.hr}</td><td class="num"><b>${Math.round(h.score)}</b></td></tr>`).join("")}</tbody></table></div>`;
+  } else if (!lineupsPosted && active.length) {
+    html += `<div class="note" style="margin-top:14px">Lineups aren’t posted yet — hitter targets appear once teams post lineups (usually 2–4 hours before first pitch). Game rankings above use team-level offense meanwhile.</div>`;
+  }
+
+  // Finished games — recap at the bottom (report card fills in after the sim runs)
+  if (finals.length) {
+    html += `<div class="section-h">Finished (${finals.length})</div><div id="rcout"></div>`;
+    html += finals.map(m => {
+      const g = m.g, away = g.teams.away.team, home = g.teams.home.team;
+      const s = m.score || { away: "?", home: "?" };
+      const awayWon = (s.away ?? 0) > (s.home ?? 0);
+      return `<details class="card finalcard gamecard">
+        <summary>
+          <div class="row1">
+            <div class="matchup"><span class="badge b-md">FINAL</span>&nbsp;
+              ${awayWon ? "<b>" : ""}${esc(away.name)} ${s.away}${awayWon ? "</b>" : ""}
+              <span class="at">—</span>
+              ${!awayWon ? "<b>" : ""}${s.home} ${esc(home.name)}${!awayWon ? "</b>" : ""}</div>
+            <div class="gtime">${m.hrPlays.length ? `💣 ${m.hrPlays.length} HR` : "no HR"} · ${esc(g.venue.name)}</div>
+          </div>
+        </summary>
+        ${m.hrPlays.length
+          ? `<div class="hrlist">${m.hrPlays.map(p =>
+              `<div class="hritem">💣 <span>${esc(p.desc)}</span> <span class="note">(${esc(p.half || "")} ${p.inning || ""})</span></div>`).join("")}</div>`
+          : `<div class="note" style="margin-top:6px">No home runs in this one.</div>`}
+      </details>`;
+    }).join("");
+  }
+  app.innerHTML = html;
+
+  const doSim = () => {
+    const btn = $("#simbtn");
+    if (!btn) return;
+    btn.disabled = true; btn.textContent = "Simulating…";
+    setTimeout(() => {
+      try {
+        state.simResults = runHRSim(state.model, state.hitters, state.date, state.xhr);
+        renderSimResults(state.simResults, state.simTeam || "ALL");
+        renderReportCard(buildReportCard(state.model, state.simResults));
+      }
+      finally { btn.disabled = false; btn.textContent = "⚾ Re-run HR simulation"; }
+    }, 30);
+  };
+  $("#simbtn").onclick = doSim;
+  doSim(); // auto-run on load — picks table + report card are the headline views
+
+  const xall = $("#xall");
+  if (xall) xall.onclick = () => {
+    const cards = document.querySelectorAll("details.gamecard");
+    const expand = xall.textContent === "Expand all";
+    cards.forEach(c => { c.open = expand; });
+    xall.textContent = expand ? "Collapse all" : "Expand all";
+  };
+}
+
+async function run() {
+  $("#curdate").textContent = new Date(state.date + "T12:00:00")
+    .toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+  $("#app").innerHTML = `<div class="status"><span class="spin"></span>Loading slate for ${state.date}…</div>`;
+  try {
+    const data = await loadSlate(state.date);
+    state.model = buildModel(data);
+    state.hitters = data.hitters;
+    state.xhr = data.xhrMap || {};
+    render(state.model);
+    const n = data.games.length;
+    const probables = data.games.reduce((c, g) =>
+      c + !!g.teams.away.probablePitcher + !!g.teams.home.probablePitcher, 0);
+    const lineups = data.games.filter(g =>
+      g.lineups?.awayPlayers?.length && g.lineups?.homePlayers?.length).length;
+    const wxN = Object.keys(data.wxByGame || {}).length;
+    const penN = Object.keys(data.pens || {}).length;
+    const scN = Object.keys(state.xhr).length;
+    $("#updated").textContent = n
+      ? `live · probables ${probables}/${n * 2} · lineups ${lineups}/${n} · weather ${wxN}/${n} · pens ${penN}/${n * 2} · statcast ${scN ? scN + " ✓" : "–"} · updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+      : "updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  } catch (e) {
+    $("#app").innerHTML = `<div class="status"><div class="err">Couldn’t load live data.</div>
+      <div style="margin-top:8px">${esc(e.message)}</div>
+      <div class="note" style="margin-top:10px">If this view blocks network requests, download the file and open it directly in your browser — it fetches MLB Stats API and Open-Meteo live on load.</div>
+      <button onclick="run()">Retry</button></div>`;
+  }
+}
+
+$("#prev").onclick = () => { state.date = shiftDate(state.date, -1); run(); };
+$("#next").onclick = () => { state.date = shiftDate(state.date, 1); run(); };
+$("#refresh").onclick = () => run();
+
+// Auto-refresh: re-pull everything every 3 minutes (only useful on game days)
+let autoTimer = null;
+$("#autobtn").onclick = () => {
+  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; $("#autobtn").textContent = "Auto: off"; }
+  else { autoTimer = setInterval(run, 180000); $("#autobtn").textContent = "Auto: 3m ✓"; run(); }
+};
+
+// Theme: defaults to Light; button cycles Light -> Dark -> Auto (follow OS)
+const THEMES = [["light", "☀ Light"], ["dark", "● Dark"], ["", "◐ Auto"]];
+let themeIdx = 0;
+function applyTheme() {
+  const [val, label] = THEMES[themeIdx];
+  if (val) document.documentElement.dataset.theme = val;
+  else delete document.documentElement.dataset.theme;
+  $("#themebtn").textContent = label;
+}
+$("#themebtn").onclick = () => { themeIdx = (themeIdx + 1) % 3; applyTheme(); };
+applyTheme(); // light by default
+
+run();
+</script>
+</body>
+</html>
