@@ -154,6 +154,31 @@
   #simbtn:disabled { opacity: 0.6; cursor: default; }
   .spin { display:inline-block; width:16px; height:16px; border:2px solid var(--grid); border-top-color: var(--seq-400); border-radius:50%; animation: sp 0.8s linear infinite; vertical-align: -3px; margin-right: 8px; }
   @keyframes sp { to { transform: rotate(360deg); } }
+  /* ---------- Mobile ---------- */
+  .tscroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tscroll table { min-width: 100%; }
+  @media (max-width: 600px) {
+    .wrap { padding: 12px 10px 40px; }
+    .card { padding: 12px 12px; margin-bottom: 10px; }
+    h1 { font-size: 18px; }
+    header.top { flex-direction: column; align-items: flex-start; gap: 2px; }
+    #updated { font-size: 10.5px; line-height: 1.4; }
+    .datebar { flex-wrap: wrap; gap: 6px; }
+    .datebar button { padding: 5px 9px; font-size: 12px; }
+    .datebar .cur { min-width: 0; font-size: 13px; }
+    .tiles { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .tile .v { font-size: 17px; }
+    .matchup { font-size: 13.5px; }
+    .gtime { font-size: 11px; white-space: normal; }
+    th, td { font-size: 11.5px; padding-right: 6px; }
+    .opt, .oneinn { display: none; }   /* lower-priority columns hide on phones */
+    .howread { font-size: 12px; padding: 9px 11px; }
+    .chips { gap: 5px; }
+    .chip { font-size: 11px; padding: 2px 8px; }
+    .mlrow { grid-template-columns: minmax(0,1fr) 62px 62px 62px; gap: 5px; }
+    .oddcell { font-size: 12px; padding: 4px 2px; }
+    .mlteam { font-size: 12.5px; }
+  }
 </style>
 </head>
 <body class="viz-root">
@@ -974,11 +999,11 @@ function renderSimResults(allResults, team = "ALL") {
         <b>more</b> (longer odds, like ${better}), the model sees value — if it pays less, skip.
         The <b>#${rk}</b> is his rank among all ${results.length} hitters on today’s slate.</div>`;
     })() : ""}
-    <table style="margin-top:8px"><thead><tr>
+    <div class="tscroll"><table style="margin-top:8px"><thead><tr>
       <th title="Rank across the whole slate">Rank</th><th>Hitter</th><th>Game</th>
-      <th class="num" title="Batting order position — higher up bats more often">Bats</th>
-      <th title="Starting pitcher's throwing hand">Starter</th>
-      <th class="num" title="Actual homers · Statcast expected homers">HR · xHR</th>
+      <th class="num opt" title="Batting order position — higher up bats more often">Bats</th>
+      <th class="opt" title="Starting pitcher's throwing hand">Starter</th>
+      <th class="num opt" title="Actual homers · Statcast expected homers">HR · xHR</th>
       <th class="num" title="Chance of at least one homer today">HR chance</th>
       <th class="num" title="Break-even sportsbook price for that chance — not a real line">Fair price</th><th></th></tr></thead>
     <tbody>${shown.map(r => {
@@ -986,12 +1011,12 @@ function renderSimResults(allResults, team = "ALL") {
       const luck = r.xhr == null ? "" : r.xf > 1.05 ? ' <span style="color:var(--hot)" title="unlucky — boosted">↑</span>'
         : r.xf < 0.95 ? ' <span style="color:var(--cold)" title="lucky — discounted">↓</span>' : "";
       return `<tr><td>#${results.indexOf(r) + 1}</td><td class="name">${esc(r.name)}${r.projected ? " *" : ""}${r.mode === "live" ? ' <span class="livedot" title="Game in progress — chance covers the rest of the game only"></span>' : ""}</td>
-        <td>${esc(r.game)}</td><td class="num">${ordinal(r.slot)}</td><td>${r.spHand === "L" ? "Lefty" : r.spHand === "R" ? "Righty" : "TBD"}</td>
-        <td class="num">${r.seasonHR} · ${r.xhr != null ? r.xhr.toFixed(0) : "—"}${luck}</td>
-        <td class="num"><b>${(r.p * 100).toFixed(1)}%</b> <span class="note">(1 in ${Math.max(2, Math.round(1 / r.p))})</span></td>
+        <td>${esc(r.game)}</td><td class="num opt">${ordinal(r.slot)}</td><td class="opt">${r.spHand === "L" ? "Lefty" : r.spHand === "R" ? "Righty" : "TBD"}</td>
+        <td class="num opt">${r.seasonHR} · ${r.xhr != null ? r.xhr.toFixed(0) : "—"}${luck}</td>
+        <td class="num"><b>${(r.p * 100).toFixed(1)}%</b> <span class="note oneinn">(1 in ${Math.max(2, Math.round(1 / r.p))})</span></td>
         <td class="num">${fairOdds(r.p)}</td>
         <td><span class="badge ${cls}">${word}</span></td></tr>`;
-    }).join("")}</tbody></table>
+    }).join("")}</tbody></table></div>
     <p class="note" style="margin-top:8px">${SIM_N.toLocaleString()} simulated games per hitter.
     ${results.some(r => r.mode === "live") ? 'Rows with a green dot are in-progress games — the chance covers the <b>rest</b> of that game (fewer at-bats left, bullpen arms likelier).' : ""}
     ${results.some(r => r.xhr != null)
@@ -1020,10 +1045,10 @@ function renderReportCard(rc) {
       ? "Hitters who homered were rated <b>above average</b> by the model before the games — the signal is pointing the right way."
       : "Hitters who homered were rated at or below the model’s average today — normal on small daily samples, worth watching over weeks."}
     One day proves nothing either way; check this over a few weeks. (Uses current season stats, so probabilities for past games carry a small hindsight bias.)</p>
-    ${rc.rows.length ? `<table><thead><tr><th>Homered</th><th>Game</th><th class="num">Inning</th><th class="num">Model chance</th><th class="num">Model rank</th></tr></thead>
-    <tbody>${rc.rows.map(r => `<tr><td class="name">${esc(r.name)}</td><td>${esc(r.game)}</td><td class="num">${r.inning || "—"}</td>
+    ${rc.rows.length ? `<div class="tscroll"><table><thead><tr><th>Homered</th><th>Game</th><th class="num opt">Inning</th><th class="num">Model chance</th><th class="num">Model rank</th></tr></thead>
+    <tbody>${rc.rows.map(r => `<tr><td class="name">${esc(r.name)}</td><td>${esc(r.game)}</td><td class="num opt">${r.inning || "—"}</td>
       <td class="num">${r.modeled ? "<b>" + (r.p * 100).toFixed(1) + "%</b>" : "not modeled"}</td>
-      <td class="num">${r.modeled ? "#" + r.rank + " of " + r.of : "—"}</td></tr>`).join("")}</tbody></table>` : ""}
+      <td class="num">${r.modeled ? "#" + r.rank + " of " + r.of : "—"}</td></tr>`).join("")}</tbody></table></div>` : ""}
   </div>`;
 }
 
@@ -1132,8 +1157,8 @@ function render(model) {
       ${m.gstate === "live" && m.hrPlays.length ? `<div class="hrlist" style="border-top:1px solid var(--grid);padding-top:8px">
         ${m.hrPlays.map(p => `<div class="hritem">💣 <span>${esc(p.desc)}</span> <span class="note">(${esc(p.half || "")} ${p.inning || ""})</span></div>`).join("")}</div>` : ""}
       ${m.targets.length ? `<details class="targets"><summary>Hitter targets in this game (${m.targets.length})</summary>
-        <table><thead><tr><th>Hitter</th><th>Tm</th><th>B</th><th>vs</th><th class="num">OPS vs SP</th><th class="num">OPS vs Pen</th><th class="num">HR</th><th class="num">Target</th></tr></thead>
-        <tbody>${m.targets.slice(0, 9).map(h => `<tr><td class="name">${esc(h.name)}${h.platoon ? " ◆" : ""}</td><td>${esc(h.team)}</td><td>${esc(h.bat)}</td><td>${esc(h.oppHand)}HP</td><td class="num">${h.vsStarter.toFixed(3)}</td><td class="num">${h.vsPen.toFixed(3)}</td><td class="num">${h.hr}</td><td class="num"><b>${Math.round(h.score)}</b></td></tr>`).join("")}</tbody></table>
+        <div class="tscroll"><table><thead><tr><th>Hitter</th><th>Tm</th><th class="opt">B</th><th class="opt">vs</th><th class="num">OPS vs SP</th><th class="num opt">OPS vs Pen</th><th class="num">HR</th><th class="num">Target</th></tr></thead>
+        <tbody>${m.targets.slice(0, 9).map(h => `<tr><td class="name">${esc(h.name)}${h.platoon ? " ◆" : ""}</td><td>${esc(h.team)}</td><td class="opt">${esc(h.bat)}</td><td class="opt">${esc(h.oppHand)}HP</td><td class="num">${h.vsStarter.toFixed(3)}</td><td class="num opt">${h.vsPen.toFixed(3)}</td><td class="num">${h.hr}</td><td class="num"><b>${Math.round(h.score)}</b></td></tr>`).join("")}</tbody></table></div>
         <div class="note">◆ platoon advantage vs starter · OPS vs SP uses the hitter's real split vs the starter's hand; OPS vs Pen weights his L/R splits by that bullpen's lefty/righty innings mix · Target: 100 ≈ average hitter, average park, average staff</div>
       </details>` : ""}
     </details>`;
@@ -1141,8 +1166,8 @@ function render(model) {
 
   if (allTargets.length) {
     html += `<div class="section-h">Top hitter targets across the slate</div>
-    <div class="card"><table><thead><tr><th>Hitter</th><th>Game</th><th>B</th><th>vs</th><th class="num">OPS vs SP</th><th class="num">OPS vs Pen</th><th class="num">HR</th><th class="num">Target</th></tr></thead>
-    <tbody>${allTargets.map(h => `<tr><td class="name">${esc(h.name)}${h.platoon ? " ◆" : ""}</td><td>${esc(h.game)}</td><td>${esc(h.bat)}</td><td>${esc(h.oppHand)}HP</td><td class="num">${h.vsStarter.toFixed(3)}</td><td class="num">${h.vsPen.toFixed(3)}</td><td class="num">${h.hr}</td><td class="num"><b>${Math.round(h.score)}</b></td></tr>`).join("")}</tbody></table></div>`;
+    <div class="card"><div class="tscroll"><table><thead><tr><th>Hitter</th><th>Game</th><th class="opt">B</th><th class="opt">vs</th><th class="num">OPS vs SP</th><th class="num opt">OPS vs Pen</th><th class="num">HR</th><th class="num">Target</th></tr></thead>
+    <tbody>${allTargets.map(h => `<tr><td class="name">${esc(h.name)}${h.platoon ? " ◆" : ""}</td><td>${esc(h.game)}</td><td class="opt">${esc(h.bat)}</td><td class="opt">${esc(h.oppHand)}HP</td><td class="num">${h.vsStarter.toFixed(3)}</td><td class="num opt">${h.vsPen.toFixed(3)}</td><td class="num">${h.hr}</td><td class="num"><b>${Math.round(h.score)}</b></td></tr>`).join("")}</tbody></table></div></div>`;
   } else if (!lineupsPosted && active.length) {
     html += `<div class="note" style="margin-top:14px">Lineups aren’t posted yet — hitter targets appear once teams post lineups (usually 2–4 hours before first pitch). Game rankings above use team-level offense meanwhile.</div>`;
   }
