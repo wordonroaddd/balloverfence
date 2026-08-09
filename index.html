@@ -215,7 +215,7 @@
       <div class="term">Total score</div><div class="def">The one number to rank games by. Mix of ballpark + weather (55%), how beatable the two pitching staffs are (30%), and how good the two offenses are (15%).</div>
       <div class="term">Run environment</div><div class="def">How run-friendly this stadium plays <i>today</i>: the park’s history plus temperature and wind.</div>
       <div class="term">HR environment</div><div class="def">Same idea, but for home runs. Reacts more to heat and wind — this is the number for HR bets.</div>
-      <div class="term">park run / park HR</div><div class="def">The stadium’s baseline from the last 3 seasons, before today’s weather is added.</div>
+      <div class="term">park run / park HR</div><div class="def">The stadium’s baseline from the last 3 seasons, before today’s weather is added. Park HR is split by batter handedness (LHB / RHB) where the park is asymmetric — Yankee Stadium’s short right porch is a 128 for lefty bats but only 108 for righties, Houston’s Crawford Boxes flip it the other way. The HR sim uses the factor for the side each hitter actually bats from against each pitcher (switch hitters flip).</div>
       <div class="term">🌡 / wind / precip</div><div class="def">Forecast at first pitch. Wind <b style="color:var(--hot)">out</b> = blowing toward the fences, helps hitters. Wind <b style="color:var(--cold)">in</b> = toward home plate, helps pitchers. “Cross” ≈ neutral. “Roof closed” = weather ignored.</div>
 
       <div class="rule"></div><div class="head">Pitchers</div>
@@ -272,40 +272,42 @@ const EXP_PA_AWAY = [4.65, 4.55, 4.44, 4.33, 4.23, 4.12, 4.01, 3.90, 3.77];
 const SIM_N = 10000;
 
 // Park factors, Statcast-style 3-yr rolling, 100 = neutral.
-// Keyed by MLB venue id. run = runs factor, hr = home-run factor.
+// Keyed by MLB venue id. run = runs factor, hr = overall HR factor,
+// hrL/hrR = HR factor for left/right-handed BATTERS (parks are not symmetric:
+// Yankee's short right porch feeds lefties; Daikin's Crawford Boxes feed righties).
 // roof: "none" | "retract" | "dome"
 const PARKS = {
-  19:   { run: 112, hr: 110, roof: "none"    }, // Coors Field
-  3:    { run: 107, hr:  96, roof: "none"    }, // Fenway Park
-  2602: { run: 104, hr: 131, roof: "none"    }, // Great American Ball Park
-  15:   { run: 103, hr:  97, roof: "retract" }, // Chase Field
-  7:    { run: 102, hr:  92, roof: "none"    }, // Kauffman Stadium
-  2529: { run: 101, hr: 103, roof: "none"    }, // Sutter Health Park (ATH)
-  2681: { run: 101, hr: 113, roof: "none"    }, // Citizens Bank Park
-  3313: { run: 100, hr: 117, roof: "none"    }, // Yankee Stadium
-  4:    { run: 100, hr: 111, roof: "none"    }, // Rate Field
-  14:   { run: 100, hr: 108, roof: "retract" }, // Rogers Centre
-  4705: { run: 100, hr: 106, roof: "none"    }, // Truist Park
-  17:   { run: 100, hr: 102, roof: "none"    }, // Wrigley Field
-  5:    { run: 100, hr: 100, roof: "none"    }, // Progressive Field
-  3312: { run:  99, hr: 100, roof: "none"    }, // Target Field
-  2:    { run:  99, hr: 105, roof: "none"    }, // Camden Yards
-  1:    { run:  99, hr: 106, roof: "none"    }, // Angel Stadium
-  2392: { run:  99, hr: 106, roof: "retract" }, // Daikin Park (HOU)
-  32:   { run:  99, hr: 108, roof: "retract" }, // American Family Field
-  5325: { run:  99, hr: 102, roof: "retract" }, // Globe Life Field
-  3309: { run: 100, hr: 104, roof: "none"    }, // Nationals Park
-  22:   { run:  98, hr: 112, roof: "none"    }, // Dodger Stadium
-  31:   { run:  98, hr:  90, roof: "none"    }, // PNC Park
-  2889: { run:  97, hr:  92, roof: "none"    }, // Busch Stadium
-  2394: { run:  97, hr:  95, roof: "none"    }, // Comerica Park
-  4169: { run:  97, hr:  90, roof: "retract" }, // loanDepot park
-  3289: { run:  97, hr:  99, roof: "none"    }, // Citi Field
-  2680: { run:  96, hr: 100, roof: "none"    }, // Petco Park
-  2395: { run:  96, hr:  85, roof: "none"    }, // Oracle Park
-  680:  { run:  92, hr:  95, roof: "retract" }, // T-Mobile Park (canopy)
-  12:   { run:  96, hr:  95, roof: "dome"    }, // Tropicana Field
-  2523: { run: 102, hr: 110, roof: "none"    }, // Steinbrenner Field
+  19:   { run: 112, hr: 110, hrL: 108, hrR: 112, roof: "none"    }, // Coors Field
+  3:    { run: 107, hr:  96, hrL:  89, hrR: 100, roof: "none"    }, // Fenway Park
+  2602: { run: 104, hr: 131, hrL: 134, hrR: 128, roof: "none"    }, // Great American Ball Park
+  15:   { run: 103, hr:  97, hrL:  99, hrR:  96, roof: "retract" }, // Chase Field
+  7:    { run: 102, hr:  92, hrL:  90, hrR:  94, roof: "none"    }, // Kauffman Stadium
+  2529: { run: 101, hr: 103, hrL: 105, hrR: 101, roof: "none"    }, // Sutter Health Park (ATH)
+  2681: { run: 101, hr: 113, hrL: 117, hrR: 110, roof: "none"    }, // Citizens Bank Park
+  3313: { run: 100, hr: 117, hrL: 128, hrR: 108, roof: "none"    }, // Yankee Stadium
+  4:    { run: 100, hr: 111, hrL: 112, hrR: 110, roof: "none"    }, // Rate Field
+  14:   { run: 100, hr: 108, hrL: 108, hrR: 108, roof: "retract" }, // Rogers Centre
+  4705: { run: 100, hr: 106, hrL: 107, hrR: 105, roof: "none"    }, // Truist Park
+  17:   { run: 100, hr: 102, hrL: 101, hrR: 103, roof: "none"    }, // Wrigley Field
+  5:    { run: 100, hr: 100, hrL: 105, hrR:  96, roof: "none"    }, // Progressive Field
+  3312: { run:  99, hr: 100, hrL:  98, hrR: 102, roof: "none"    }, // Target Field
+  2:    { run:  99, hr: 105, hrL: 102, hrR: 108, roof: "none"    }, // Camden Yards
+  1:    { run:  99, hr: 106, hrL: 104, hrR: 108, roof: "none"    }, // Angel Stadium
+  2392: { run:  99, hr: 106, hrL:  98, hrR: 114, roof: "retract" }, // Daikin Park (HOU)
+  32:   { run:  99, hr: 108, hrL: 112, hrR: 105, roof: "retract" }, // American Family Field
+  5325: { run:  99, hr: 102, hrL: 104, hrR: 100, roof: "retract" }, // Globe Life Field
+  3309: { run: 100, hr: 104, hrL: 104, hrR: 104, roof: "none"    }, // Nationals Park
+  22:   { run:  98, hr: 112, hrL: 112, hrR: 112, roof: "none"    }, // Dodger Stadium
+  31:   { run:  98, hr:  90, hrL:  96, hrR:  84, roof: "none"    }, // PNC Park
+  2889: { run:  97, hr:  92, hrL:  92, hrR:  92, roof: "none"    }, // Busch Stadium
+  2394: { run:  97, hr:  95, hrL:  98, hrR:  92, roof: "none"    }, // Comerica Park
+  4169: { run:  97, hr:  90, hrL:  88, hrR:  92, roof: "retract" }, // loanDepot park
+  3289: { run:  97, hr:  99, hrL: 102, hrR:  96, roof: "none"    }, // Citi Field
+  2680: { run:  96, hr: 100, hrL:  98, hrR: 102, roof: "none"    }, // Petco Park
+  2395: { run:  96, hr:  85, hrL:  78, hrR:  91, roof: "none"    }, // Oracle Park
+  680:  { run:  92, hr:  95, hrL:  92, hrR:  97, roof: "retract" }, // T-Mobile Park (canopy)
+  12:   { run:  96, hr:  95, hrL:  96, hrR:  94, roof: "dome"    }, // Tropicana Field
+  2523: { run: 102, hr: 110, hrL: 122, hrR: 103, roof: "none"    }, // Steinbrenner Field
 };
 
 // Weather sensitivity (index points)
@@ -552,6 +554,18 @@ function simulateRemainingHR(pEff, expPA, nSims, rng) {
     for (let k = 0; k < pa; k++) if (rng() < pEff) { hits++; break; }
   }
   return hits / nSims;
+}
+
+// Which side a hitter bats from against a given pitcher hand
+// (switch hitters take the opposite side of the pitcher).
+function battingSideVs(bat, pitcherHand) {
+  if (bat === "S") return pitcherHand === "L" ? "R" : "L";
+  return bat === "L" || bat === "R" ? bat : "R";
+}
+
+// Park HR factor for a specific batting side (falls back to the overall factor)
+function parkHRForSide(park, side) {
+  return (side === "L" ? park.hrL : park.hrR) ?? park.hr;
 }
 
 // Batting stance label. Switch hitters bat opposite the pitcher, so their
@@ -910,7 +924,8 @@ function runHRSim(model, hitters, dateISO, xhrMap = {}) {
   const rng = mulberry32(hashStr(dateISO));
   const results = [];
   for (const m of model) {
-    const envHRmult = clamp(m.envHR / 100, 0.6, 1.6);
+    // per-side environment: handedness-specific park HR factor + today's weather
+    const envSide = side => clamp((parkHRForSide(m.park, side) + (m.wadj?.hr || 0)) / 100, 0.6, 1.6);
     const gameLabel = `${m.g.teams.away.team.abbreviation || "AWY"}@${m.g.teams.home.team.abbreviation || "HME"}`;
     // pre: full-game forecast · live: rest-of-game forecast · final: retro full-game
     // (final-mode results feed the report card, not the picks table)
@@ -926,11 +941,15 @@ function runHRSim(model, hitters, dateISO, xhrMap = {}) {
         if (!h || h.pa < 100 || slot > 8) return;
         // Statcast quality-of-contact adjustment (1.0 when no xHR data)
         const xf = xhrFactor(xhrMap[id]);
-        const rateVsSP = hitterHRRate(h, s.starterHand) * xf;
-        // vs pen: blend his L/R rates by the pen's lefty/righty innings mix
-        const rateVsPen = (s.penMixL * hitterHRRate(h, "L") + (1 - s.penMixL) * hitterHRRate(h, "R")) * xf;
-        const pSP = hrProbPA(rateVsSP, spRate, envHRmult);
-        const pPen = hrProbPA(rateVsPen, penRate, envHRmult);
+        // vs starter: his split for the starter's hand, in the park factor for
+        // the side he'll bat from (switch hitters flip to face the pitcher)
+        const pSP = hrProbPA(hitterHRRate(h, s.starterHand) * xf, spRate,
+          envSide(battingSideVs(h.bat, s.starterHand)));
+        // vs pen: blend facing-LHP and facing-RHP scenarios by the pen's
+        // innings mix — each with its own split AND its own park side
+        const pPenVsL = hrProbPA(hitterHRRate(h, "L") * xf, penRate, envSide(battingSideVs(h.bat, "L")));
+        const pPenVsR = hrProbPA(hitterHRRate(h, "R") * xf, penRate, envSide(battingSideVs(h.bat, "R")));
+        const pPen = s.penMixL * pPenVsL + (1 - s.penMixL) * pPenVsR;
         let p;
         if (mode === "live") {
           const expPA = (EXP_PA_AWAY[clamp(slot, 0, 8)] - (s.isHome ? 0.12 : 0)) * remFrac;
@@ -1219,7 +1238,9 @@ function render(model) {
       </summary>
       <div class="chips">
         <span class="chip">park run <b>${m.park.run}</b></span>
-        <span class="chip">park HR <b>${m.park.hr}</b></span>
+        ${m.park.hrL != null && m.park.hrL !== m.park.hrR
+          ? `<span class="chip" title="HR park factor by batter handedness — this park plays differently for lefty and righty bats">park HR <b>${m.park.hrL}</b> LHB · <b>${m.park.hrR}</b> RHB</span>`
+          : `<span class="chip">park HR <b>${m.park.hr}</b></span>`}
         ${wxChips}${roofChip}
       </div>
       <div class="meters">
