@@ -192,7 +192,6 @@
     <span class="cur" id="curdate"></span>
     <button id="next" aria-label="Next day">Next ›</button>
     <button id="refresh">Refresh</button>
-    <button id="autobtn" title="Re-pull live data automatically every 3 minutes">Auto: off</button>
     <button id="themebtn" title="Switch between light and dark mode">◐ Auto</button>
   </div>
   <details class="legend">
@@ -1058,6 +1057,11 @@ function render(model) {
     app.innerHTML = `<div class="status">No MLB games on this date.</div>`;
     return;
   }
+  // remember which cards the user has open so auto-refresh doesn't collapse them
+  const prevOpen = state.rendered
+    ? new Set([...app.querySelectorAll("details.gamecard[open]")].map(d => d.dataset.key).filter(Boolean))
+    : null;
+  const isOpen = (key, dflt) => prevOpen ? prevOpen.has(key) : dflt;
   const active = model.filter(m => m.gstate !== "final");
   const finals = model.filter(m => m.gstate === "final");
   const upcoming = model.filter(m => m.gstate === "pre");
@@ -1131,7 +1135,7 @@ function render(model) {
       : windChip(m);
     const roofChip = m.park.roof !== "none" && !m.wadj.roofClosed && m.wx ? `<span class="chip">roof assumed open</span>` : "";
     const elev = m.g.venue?.location?.elevation;
-    return `<details class="card gamecard"${i === 0 ? " open" : ""}>
+    return `<details class="card gamecard" data-key="g${g.gamePk}"${isOpen("g" + g.gamePk, i === 0) ? " open" : ""}>
       <summary>
         <div class="row1">
           <div>
@@ -1179,7 +1183,7 @@ function render(model) {
       const g = m.g, away = g.teams.away.team, home = g.teams.home.team;
       const s = m.score || { away: "?", home: "?" };
       const awayWon = (s.away ?? 0) > (s.home ?? 0);
-      return `<details class="card finalcard gamecard">
+      return `<details class="card finalcard gamecard" data-key="g${g.gamePk}"${isOpen("g" + g.gamePk, false) ? " open" : ""}>
         <summary>
           <div class="row1">
             <div class="matchup"><span class="badge b-md">FINAL</span>&nbsp;
@@ -1221,12 +1225,19 @@ function render(model) {
     cards.forEach(c => { c.open = expand; });
     xall.textContent = expand ? "Collapse all" : "Expand all";
   };
+  state.rendered = true;
 }
 
 async function run() {
   $("#curdate").textContent = new Date(state.date + "T12:00:00")
     .toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
-  $("#app").innerHTML = `<div class="status"><span class="spin"></span>Loading slate for ${state.date}…</div>`;
+  // Show the spinner only on first load or a date change — background refreshes
+  // keep the current view (and its open cards) until the new data is ready.
+  if (!state.rendered || state.lastDate !== state.date) {
+    state.rendered = false;
+    $("#app").innerHTML = `<div class="status"><span class="spin"></span>Loading slate for ${state.date}…</div>`;
+  }
+  state.lastDate = state.date;
   try {
     const data = await loadSlate(state.date);
     state.model = buildModel(data);
@@ -1242,7 +1253,7 @@ async function run() {
     const penN = Object.keys(data.pens || {}).length;
     const scN = Object.keys(state.xhr).length;
     $("#updated").textContent = n
-      ? `live · probables ${probables}/${n * 2} · lineups ${lineups}/${n} · weather ${wxN}/${n} · pens ${penN}/${n * 2} · statcast ${scN ? scN + " ✓" : "–"} · updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+      ? `live · probables ${probables}/${n * 2} · lineups ${lineups}/${n} · weather ${wxN}/${n} · pens ${penN}/${n * 2} · statcast ${scN ? scN + " ✓" : "–"} · updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · auto-refreshes every 2 min`
       : "updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   } catch (e) {
     $("#app").innerHTML = `<div class="status"><div class="err">Couldn’t load live data.</div>
@@ -1252,16 +1263,22 @@ async function run() {
   }
 }
 
-$("#prev").onclick = () => { state.date = shiftDate(state.date, -1); run(); };
-$("#next").onclick = () => { state.date = shiftDate(state.date, 1); run(); };
-$("#refresh").onclick = () => run();
+// Overlap guard so a slow refresh never stacks on top of the next one
+let refreshing = false;
+async function runSafe() {
+  if (refreshing) return;
+  refreshing = true;
+  try { await run(); } finally { refreshing = false; }
+}
 
-// Auto-refresh: re-pull everything every 3 minutes (only useful on game days)
-let autoTimer = null;
-$("#autobtn").onclick = () => {
-  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; $("#autobtn").textContent = "Auto: off"; }
-  else { autoTimer = setInterval(run, 180000); $("#autobtn").textContent = "Auto: 3m ✓"; run(); }
-};
+$("#prev").onclick = () => { state.date = shiftDate(state.date, -1); runSafe(); };
+$("#next").onclick = () => { state.date = shiftDate(state.date, 1); runSafe(); };
+$("#refresh").onclick = () => runSafe();
+
+// Always-on auto-refresh: every 2 minutes while the tab is visible,
+// plus an immediate refresh when you come back to the tab.
+setInterval(() => { if (!document.hidden) runSafe(); }, 120000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) runSafe(); });
 
 // Theme: defaults to Light; button cycles Light -> Dark -> Auto (follow OS)
 const THEMES = [["light", "☀ Light"], ["dark", "● Dark"], ["", "◐ Auto"]];
@@ -1275,7 +1292,7 @@ function applyTheme() {
 $("#themebtn").onclick = () => { themeIdx = (themeIdx + 1) % 3; applyTheme(); };
 applyTheme(); // light by default
 
-run();
+runSafe();
 </script>
 </body>
 </html>
