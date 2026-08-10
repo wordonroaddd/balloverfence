@@ -160,6 +160,8 @@
   #stake { width: 64px; } #bookodds { width: 120px; }
   .lg-hit { background: var(--good); color: #fff; }
   .lg-miss { background: var(--hot); color: #fff; }
+  .legsel { background: var(--surface-1); border: 1px solid var(--border); color: var(--text-primary);
+    border-radius: 6px; padding: 2px 6px; font-size: 12px; font-weight: 600; max-width: 210px; }
   #parlaytile { position: relative; padding-bottom: 22px; }
   .ibtn { position: absolute; right: 8px; bottom: 8px; width: 16px; height: 16px;
     border-radius: 50%; border: 1px solid var(--baseline); background: none;
@@ -248,7 +250,7 @@
       <div class="term">LIVE rows</div><div class="def">That game is in progress — the chance covers only the <i>rest</i> of the game (fewer at-bats left, and bullpen arms more likely), so live numbers run lower than pre-game ones.</div>
       <div class="term">Report card</div><div class="def">Once games finish, the model grades itself: every homer actually hit, what chance the model gave that hitter before the game, and whether homer-hitters rated above the day’s average. One day is noise — judge it over weeks.</div>
       <div class="term">HR parlay tile</div><div class="def">The sim’s top pick from each of the N best games (one per game, so multiplying their chances is roughly valid), with the combined chance and its fair price. Set the legs. <b>Caution:</b> books pay parlays far below fair — this shows what the ticket is <i>worth</i>, and most long parlays are entertainment, not value.</div>
-      <div class="term">Parlay tracker</div><div class="def">Today’s suggested parlay locks in once built (it survives reloads) and grades itself live: each leg turns <b>HIT ✓</b> the moment that hitter homers, <b>missed</b> when his game ends without one, and the ticket reads CASHED or BUSTED. The calculator shows what a stake returns at fair price — paste your book’s offered odds to see what share of fair value they’re paying.</div>
+      <div class="term">Ticket tracker</div><div class="def">Today’s suggested ticket locks in once built (it survives reloads) and grades itself live: each leg turns <b>HIT ✓</b> the moment that hitter homers, <b>missed</b> when his game ends without one, and the ticket reads CASHED or BUSTED. Set legs to <b>1</b> for a straight HR bet. Each leg’s dropdown offers that game’s other top hitters — swaps save, but a leg freezes once its game starts. The calculator shows what a stake returns at fair price — paste your book’s offered odds to see what share of fair value they’re paying.</div>
     </div>
   </details>
   <div id="app"><div class="status"><span class="spin"></span>Loading today’s slate…</div></div>
@@ -1097,6 +1099,16 @@ function pickParlay(results, legs) {
   return picks;
 }
 
+// Build a ticket with swappable alternates: each leg carries the top hitters
+// from its own game so the user can pick a different player per game.
+function buildTicket(results, legs, altsPerGame = 4) {
+  return pickParlay(results, legs).map(r => ({
+    pid: r.pid, name: r.name, game: r.game, p: r.p,
+    alts: results.filter(x => x.mode === "pre" && x.game === r.game)
+      .slice(0, altsPerGame).map(x => ({ pid: x.pid, name: x.name, p: x.p })),
+  }));
+}
+
 // Grade each locked leg against the live game data (hrPlays carry batter ids)
 function gradeParlay(picks, model) {
   const byLabel = {};
@@ -1137,22 +1149,22 @@ const PARLAY_KEY = "slatepal_parlay";
 function renderParlay(results) {
   const odds = $("#parlayodds"), list = $("#parlaylist"), body = $("#parlaybody"), sum = $("#parlaysum");
   if (!odds || !results) return;
-  const legs = clamp(parseInt($("#legs")?.value, 10) || 3, 2, 8);
+  const legs = clamp(parseInt($("#legs")?.value, 10) || 3, 1, 8);
+  const kind = legs === 1 ? "straight bet" : "parlay";
   const isToday = state.date === easternISODate();
 
-  // Lock today's parlay: once suggested it stays fixed (and survives reloads),
+  // Lock today's ticket: once suggested it stays fixed (and survives reloads),
   // so it can be honestly graded even as its games go live and finish.
   let lock = storeGet(PARLAY_KEY);
   if (lock && lock.date !== state.date) lock = null;
   if (isToday && (!lock || lock.legs !== legs)) {
-    const fresh = pickParlay(results, legs)
-      .map(r => ({ pid: r.pid, name: r.name, game: r.game, p: r.p }));
+    const fresh = buildTicket(results, legs);
     if (fresh.length === legs) {
       lock = { date: state.date, legs, picks: fresh, stake: lock?.stake ?? 10, book: lock?.book ?? "" };
       storeSet(PARLAY_KEY, lock);
     }
   }
-  const picks = lock?.picks || pickParlay(results, legs).map(r => ({ pid: r.pid, name: r.name, game: r.game, p: r.p }));
+  const picks = lock?.picks || buildTicket(results, legs);
 
   if (picks.length < legs) {
     odds.textContent = "—";
@@ -1179,20 +1191,28 @@ function renderParlay(results) {
     : '<span class="badge b-md">not started</span>';
 
   if (body) {
+    const legCell = (l, i) => {
+      const canSwap = l.status === "pending" && (l.alts?.length || 0) > 1;
+      if (!canSwap) return `<span class="name" title="${l.status === "pending" ? "" : "Locked — game has started"}">${esc(l.name)}</span>`;
+      return `<select class="legsel" data-i="${i}" title="Swap this leg to another top hitter from the same game">
+        ${l.alts.map(a => `<option value="${a.pid}"${a.pid === l.pid ? " selected" : ""}>${esc(a.name)} — ${(a.p * 100).toFixed(1)}%</option>`).join("")}</select>`;
+    };
     body.innerHTML = `
       ${lock ? "" : `<p class="note" style="margin-bottom:6px">Viewing a different date — this is a preview and won’t be tracked.</p>`}
-      <div class="tscroll"><table><thead><tr><th>Leg</th><th>Game</th><th class="num">Model chance</th><th>Status</th></tr></thead>
-      <tbody>${grade.legs.map(l => `<tr><td class="name">${esc(l.name)}</td><td>${esc(l.game)}</td>
+      <div class="tscroll"><table><thead><tr><th>Leg (swap via dropdown)</th><th>Game</th><th class="num">Model chance</th><th>Status</th></tr></thead>
+      <tbody>${grade.legs.map((l, i) => `<tr><td>${legCell(l, i)}</td><td>${esc(l.game)}</td>
         <td class="num">${(l.p * 100).toFixed(1)}%</td><td>${statusBadge(l)}</td></tr>`).join("")}</tbody></table></div>
       <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:10px">
         <label class="note"><b>Stake $</b> <input id="stake" type="number" min="1" step="1" value="${lock?.stake ?? 10}"></label>
         <label class="note"><b>Book’s odds</b> <input id="bookodds" type="text" placeholder="+12000 (optional)" value="${esc(lock?.book ?? "")}"></label>
       </div>
       <div id="payoutout" class="howread" style="margin-top:8px"></div>
-      <p class="note" style="margin-top:8px"><b>How it’s built:</b> the sim’s single best HR pick from each of the ${legs} best upcoming games — one hitter per game, since multiplying chances assumes independent legs.
-      ${picks.map(r => `${esc(r.name.split(" ").pop())} <b>${(r.p * 100).toFixed(1)}%</b>`).join(" × ")} = <b>${(p * 100).toFixed(2)}%</b>.
-      ${lock ? "Locked for today — it grades itself as games finish." : ""}
-      A real book pays parlays below fair (margin compounds per leg); paste their offered odds above to see how far below.</p>`;
+      <p class="note" style="margin-top:8px"><b>How it’s built:</b> ${legs === 1
+        ? `a single leg is just a <b>straight HR bet</b> — ${esc(picks[0].name)} at <b>${(p * 100).toFixed(1)}%</b>, no multiplication involved. Use the dropdown to take any of the top hitters from that game instead.`
+        : `the sim’s single best HR pick from each of the ${legs} best upcoming games — one hitter per game, since multiplying chances assumes independent legs. Each dropdown offers that game’s other top hitters if you’d rather ride a different bat:
+      ${picks.map(r => `${esc(r.name.split(" ").pop())} <b>${(r.p * 100).toFixed(1)}%</b>`).join(" × ")} = <b>${(p * 100).toFixed(2)}%</b>.`}
+      ${lock ? "Locked for today — swaps save, and each leg freezes once its game starts. It grades itself as games finish." : ""}
+      ${legs === 1 ? "Books shade straight HR props too, just less brutally than parlays" : "A real book pays parlays below fair (margin compounds per leg)"}; paste their offered odds above to compare.</p>`;
 
     const updatePayout = () => {
       const stake = Math.max(1, parseFloat($("#stake").value) || 10);
@@ -1208,6 +1228,16 @@ function renderParlay(results) {
     $("#stake").oninput = updatePayout;
     $("#bookodds").oninput = updatePayout;
     updatePayout();
+
+    // leg swaps: pick a different top hitter from the same game
+    document.querySelectorAll("#parlaybody .legsel").forEach(sel => sel.onchange = () => {
+      const i = +sel.dataset.i, pid = +sel.value;
+      const alt = picks[i].alts?.find(a => a.pid === pid);
+      if (!alt) return;
+      picks[i] = { ...picks[i], pid: alt.pid, name: alt.name, p: alt.p };
+      if (lock) { lock.picks = picks; storeSet(PARLAY_KEY, lock); }
+      renderParlay(results);
+    });
   }
 }
 
@@ -1260,8 +1290,8 @@ function render(model) {
     <div class="tile"><div class="k">Best HR env</div><div class="v">${fmt1(hottest.envHR)}</div><div class="d">${esc(hottest.g.venue.name)}</div></div>
     <div class="tile"><div class="k">Scale</div><div class="v">100</div><div class="d">= league average</div></div>
     <div class="tile" id="parlaytile">
-      <div class="k">HR parlay · <label for="legs">legs</label>
-        <input id="legs" type="number" min="2" max="8" value="${state.parlayLegs || 3}"></div>
+      <div class="k">HR ticket · <label for="legs">legs</label>
+        <input id="legs" type="number" min="1" max="8" value="${state.parlayLegs || 3}"></div>
       <div class="v" id="parlayodds">—</div>
       <div class="d" id="parlaylist">picks load with the sim…</div>
       <button id="parlayinfobtn" class="ibtn" title="How this is calculated" aria-label="How the parlay is calculated">i</button>
@@ -1269,7 +1299,7 @@ function render(model) {
   </div>
   <details class="card gamecard" data-key="parlay"${isOpen("parlay", true) ? " open" : ""} style="margin:-4px 0 14px">
     <summary><div class="row1">
-      <div class="matchup" style="font-size:13px">🎟 Suggested parlay — tracker &amp; payout</div>
+      <div class="matchup" style="font-size:13px">🎟 Suggested ticket — tracker &amp; payout</div>
       <div class="gtime" id="parlaysum"></div>
     </div></summary>
     <div id="parlaybody" class="note">Waiting for the simulation…</div>
