@@ -1084,6 +1084,11 @@ function buildModel(data) {
     // game state: pre / live / final
     const abs = g.status?.abstractGameState;
     const gstate = abs === "Final" ? "final" : abs === "Live" ? "live" : "pre";
+    const detailed = g.status?.detailedState || "";
+    // schedule anomalies the scheduled time can't express on its own
+    const anomaly = /delay/i.test(detailed) ? "delayed"
+      : /postpon/i.test(detailed) ? "postponed"
+      : /suspend/i.test(detailed) ? "suspended" : null;
     const ls = g.linescore;
     const score = ls ? { away: ls.teams?.away?.runs ?? 0, home: ls.teams?.home?.runs ?? 0,
       inning: ls.currentInning, half: ls.inningState } : null;
@@ -1096,7 +1101,7 @@ function buildModel(data) {
                    batterId: p.matchup?.batter?.id || null,
                    batterName: p.matchup?.batter?.fullName || null }));
 
-    out.push({ g, park, roof, parkUnknown: !!park.unknown, wx, wadj, azimuth,
+    out.push({ g, park, roof, anomaly, parkUnknown: !!park.unknown, wx, wadj, azimuth,
       pa, ph, va, vh, penA, penH, opsA, opsH, ...sc, targets, simSides,
       gstate, score, hrPlays });
   }
@@ -1350,6 +1355,12 @@ function gridCells(r) {
 
 function renderSimResults(allResults, team = "ALL") {
   const out = $("#simout");
+  // remember which ▸ breakdowns are open so a background refresh doesn't collapse them
+  const openWhy = new Set([...document.querySelectorAll("#simout .whyrow")].map(row => {
+    const btn = row.previousElementSibling?.querySelector?.(".whytg");
+    return btn ? btn.dataset.pid + "|" + btn.dataset.mode : null;
+  }).filter(Boolean));
+  if (state.pendingOpenWhy) { for (const k of state.pendingOpenWhy) openWhy.add(k); state.pendingOpenWhy = null; }
   const results = allResults.filter(r => r.mode !== "final"); // picks table: upcoming + live only
   if (!results.length) { out.innerHTML = `<p class="note" style="margin-top:8px">All of today’s games are finished — see the report card below for how the model did.</p>`; return; }
   const teams = [...new Set(results.map(r => r.team))].sort();
@@ -1446,7 +1457,7 @@ function renderSimResults(allResults, team = "ALL") {
   if (vtg) vtg.onclick = () => { state.simView = state.simView === "grid" ? "table" : "grid"; renderSimResults(allResults, team); };
 
   // ▸ expands a per-hitter "why" breakdown row
-  document.querySelectorAll("#simout .whytg").forEach(btn => btn.onclick = () => {
+  const expandWhy = btn => {
     const tr = btn.closest("tr");
     const next = tr.nextElementSibling;
     if (next?.classList.contains("whyrow")) { next.remove(); btn.textContent = "▸"; return; }
@@ -1456,6 +1467,10 @@ function renderSimResults(allResults, team = "ALL") {
     row.innerHTML = `<td colspan="14">${whyHTML(r)}</td>`;
     tr.after(row);
     btn.textContent = "▾";
+  };
+  document.querySelectorAll("#simout .whytg").forEach(btn => {
+    btn.onclick = () => expandWhy(btn);
+    if (openWhy.has(btn.dataset.pid + "|" + btn.dataset.mode)) expandWhy(btn);
   });
   // + adds a hitter to (or ✓ removes him from) my ticket
   document.querySelectorAll("#simout .addtg").forEach(btn => btn.onclick = () => {
@@ -1942,7 +1957,9 @@ function shortReason(r) {
 
 // Three pick profiles, one hitter per game, top 4
 function bestBetPicks(results, mode) {
-  const pool = results.filter(r => r.mode === "pre");
+  const anomalyGames = new Set((state.model || []).filter(m => m.anomaly === "postponed" || m.anomaly === "suspended")
+    .map(m => `${m.g.teams.away.team.abbreviation || "AWY"}@${m.g.teams.home.team.abbreviation || "HME"}`));
+  const pool = results.filter(r => r.mode === "pre" && !anomalyGames.has(r.game));
   let ranked;
   if (mode === "safe") {
     ranked = [...pool].sort((a, b) => b.p - a.p);
@@ -2125,7 +2142,7 @@ function render(model) {
             <div class="matchup">#${i+1} · ${esc(away.name)} <span class="at">@</span> ${esc(home.name)}</div>
             <div class="venue">${esc(g.venue.name)}${elev ? ` · ${elev} ft` : ""}${m.parkUnknown ? " · no park-factor data (using 100)" : ""}</div>
           </div>
-          <div class="gtime">${liveChip}${t} · Total score <b>${fmt1(m.total)}</b></div>
+          <div class="gtime">${liveChip}${m.anomaly ? `<span class="badge b-hi" title="MLB lists this game as ${m.anomaly} — the scheduled time shown may no longer be when it actually starts">${m.anomaly}</span> ` : ""}${t} · Total score <b>${fmt1(m.total)}</b></div>
         </div>
       </summary>
       <div class="chips">
@@ -2188,6 +2205,7 @@ function render(model) {
     if (!btn) return;
     btn.disabled = true; btn.textContent = "Simulating…";
     setTimeout(() => {
+      const sy = window.scrollY; // sim re-render shifts heights; hold position
       try {
         state.simResults = runHRSim(state.model, state.hitters, state.date, state.xhr, state.contact);
         renderSimResults(state.simResults, state.simTeam || "ALL");
@@ -2196,7 +2214,12 @@ function render(model) {
         renderRecordTile();
         renderReportCard(buildReportCard(state.model, state.simResults));
       }
-      finally { btn.disabled = false; btn.textContent = "⚾ Re-run HR simulation"; }
+      finally {
+        btn.disabled = false; btn.textContent = "⚾ Re-run HR simulation";
+        const target = state.pendingScrollY != null ? state.pendingScrollY : sy;
+        state.pendingScrollY = null;
+        window.scrollTo(0, target);
+      }
     }, 30);
   };
   $("#simbtn").onclick = doSim;
@@ -2239,13 +2262,21 @@ async function run() {
   }
   state.lastDate = state.date;
   try {
+    const scrollYBefore = state.rendered ? window.scrollY : null;
     const data = await loadSlate(state.date);
     state.model = buildModel(data);
     state.hitters = data.hitters;
     state.xhr = data.xhrMap || {};
     state.parksLive = !!(data.liveParks && Object.keys(data.liveParks).length);
     state.contact = data.contact;
+    // stash view state BEFORE render wipes the DOM; the sim re-render restores it
+    state.pendingOpenWhy = new Set([...document.querySelectorAll("#simout .whyrow")].map(row => {
+      const btn = row.previousElementSibling?.querySelector?.(".whytg");
+      return btn ? btn.dataset.pid + "|" + btn.dataset.mode : null;
+    }).filter(Boolean));
+    state.pendingScrollY = scrollYBefore;
     render(state.model);
+    if (scrollYBefore != null) window.scrollTo(0, scrollYBefore); // best effort pre-sim
     const n = data.games.length;
     const probables = data.games.reduce((c, g) =>
       c + !!g.teams.away.probablePitcher + !!g.teams.home.probablePitcher, 0);
