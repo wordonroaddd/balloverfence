@@ -133,7 +133,7 @@
   footer p { margin-bottom: 6px; }
   #simbtn { background: var(--seq-500); color: #fff; border: none; border-radius: 8px;
     padding: 8px 18px; font-size: 13px; font-weight: 600; cursor: pointer; }
-  #simteam { background: var(--surface-1); border: 1px solid var(--border); color: var(--text-primary);
+  #simteam, #simgame { background: var(--surface-1); border: 1px solid var(--border); color: var(--text-primary);
     border-radius: 8px; padding: 4px 10px; font-size: 13px; }
   .howread { background: var(--chip-bg); border-radius: 10px; padding: 10px 14px; margin-top: 10px;
     font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; }
@@ -200,6 +200,17 @@
   .whyrow td { background: var(--chip-bg); font-size: 12px; color: var(--text-secondary);
     padding: 8px 12px; line-height: 1.5; border-bottom: 1px solid var(--grid); }
   .whyrow b { color: var(--text-primary); }
+  th.gc, td.gc { text-align: center; font-size: 11px; font-variant-numeric: tabular-nums;
+    padding: 4px 6px; min-width: 40px; color: var(--text-primary); }
+  th.xhr { padding-left: 14px; }
+  td.xhr { padding-left: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.xhr .xa, td.xhr .xb { display: inline-block; width: 20px; text-align: right; }
+  td.xhr .xsep { display: inline-block; width: 12px; text-align: center; color: var(--text-muted); }
+  td.xhr .xar { display: inline-block; width: 13px; text-align: center; }
+  th.heat { padding-left: 16px; }
+  td.heat { padding-left: 16px; white-space: nowrap; font-size: 11px; font-variant-numeric: tabular-nums; }
+  td.heat > span:first-child { display: inline-block; width: 16px; text-align: center; }
+  td.heat > span:last-child { display: inline-block; min-width: 52px; color: var(--text-secondary); }
   #parlaytile { position: relative; padding-bottom: 22px; }
   .ibtn { position: absolute; right: 8px; bottom: 8px; width: 16px; height: 16px;
     border-radius: 50%; border: 1px solid var(--baseline); background: none;
@@ -249,6 +260,7 @@
     <button id="next" aria-label="Next day">Next ›</button>
     <button id="refresh">Refresh</button>
     <button id="themebtn" title="Switch between light and dark mode">◐ Auto</button>
+    <button id="tzbtn" title="Show game times in Eastern or your local time">🕐 ET</button>
   </div>
   <details class="legend">
     <summary>Legend — how to read this board</summary>
@@ -290,6 +302,12 @@
       <div class="term">Report card</div><div class="def">Once games finish, the model grades itself: every homer actually hit, what chance the model gave that hitter before the game, and whether homer-hitters rated above the day’s average. One day is noise — judge it over weeks.</div>
       <div class="term">HR parlay tile</div><div class="def">The sim’s top pick from each of the N best games (one per game, so multiplying their chances is roughly valid), with the combined chance and its fair price. Set the legs. <b>Caution:</b> books pay parlays far below fair — this shows what the ticket is <i>worth</i>, and most long parlays are entertainment, not value.</div>
       <div class="term">🎯 Best bets</div><div class="def">The tool’s answer, not just its data: top 4 pre-game picks (one per game) with a plain decision rule — <b>bet at +X or longer</b>, which is fair price plus a 15% cushion; if your book pays less, pass. Three profiles: 🛡 Safe (highest chance), ⚖ Balanced (chance × situational edge), 🚀 Moonshot (long shots with the biggest situational lift).</div>
+      <div class="term">🟩 Grid view</div><div class="def">The color-graded matchup board (toggle in the sim controls): every factor the model uses, one shaded cell each — Park (his side), Weather, Starter HR/9, Split edge, xHR luck, Form, Barrels. <b style="color:var(--good)">Green tint = boosts him</b>, <b style="color:var(--hot)">red = hurts him</b>, deeper = stronger. A row glowing red across the board is the “everything aligned” pick; the numbers stay printed in every cell so color is a scanning aid, never the data.</div>
+      <div class="term">Heat column</div><div class="def">The at-a-glance version of the recent-signal layers, right in the sim table: 🔥 22% brl = barrels spiking (boosted), ❄ = weak contact or cold results (trimmed), · = no strong signal. Hover any entry for the numbers. This is the “who’s actually hot” read the pick services sell.</div>
+      <div class="term">Contact quality</div><div class="def">The PropFinder-style signal: each hitter’s barrel rate over the last 14 days of batted balls vs his own season norm (from live Statcast data, cached daily — “contact ✓” in the status bar). A bat that’s suddenly barreling everything gets boosted up to +10% <i>before</i> the homer totals catch up; mushy contact gets trimmed. Dampened by batted-ball count so 5 balls in play prove nothing.</div>
+      <div class="term">Form</div><div class="def">Each hitter’s last 15 games nudge his rate up or down (shrunk toward his season rate, dampened by sample size, capped at ±12%, because two hot weeks are mostly noise with a little signal). Hot and cold bats are called out in the ▸ breakdown and in pick reasoning.</div>
+      <div class="term">Singles vs parlay</div><div class="def">Every slip and the builder show what the <b>same legs at the same stake</b> would do as equal straight bets at fair prices. Three 20% picks as a parlay cash ~1 night in 100; as singles, a 1-of-3 night at plus-money is a <b>profit</b>. If your slips keep losing while the singles line keeps winning, the picks are fine — the format is the leak.</div>
+      <div class="term">Pal vs You</div><div class="def">The lifetime scoreboard tile: leg hit rate and tickets won for Pal’s locked picks vs your saved slips, accumulated day by day (only saved slips count — browsing doesn’t). If Pal’s number stays higher for a few weeks, the data is telling you to ride his picks.</div>
       <div class="term">Ticket tracker</div><div class="def">Two tickets, both graded live: <b>🤖 Pal’s pick</b> — auto-built by conviction score (HR chance × situational lift over the hitter’s neutral baseline, discounted for unposted lineups and TBD starters; expand “Pal’s reasoning” for the per-leg why), locked for the day (survives reloads); when upcoming games run out Pal fills legs from in-progress games at rest-of-game odds, so he always has action until the slate ends — and <b>🧑 My ticket</b>, yours to build with the <b>+</b> on any sim row (✕ removes a leg). <b>💾 Save</b> files your ticket as its own card below the tracker and clears the builder for the next one. Legs turn <b>HIT ✓</b> the moment that hitter homers; tickets read WON or LOST. Adding a hitter who already homered today makes it an <b>“another HR”</b> leg — shown as “(2nd HR)” — which only cashes on a new homer, priced at his rest-of-game odds. Set legs to <b>1</b> for a straight HR bet. Calculators accept American (+12000) or decimal (12.5, DK Pick6-style) odds.</div>
     </div>
   </details>
@@ -632,6 +650,20 @@ function stanceInfo(h) {
   return { code: "S", dom: null };
 }
 
+// Recent form: HR rate over the last 15 games vs season rate, heavily shrunk
+// (40-PA prior toward the season rate) and capped at ±12% so two hot weeks
+// nudge the number without hijacking it.
+function formFactor(h) {
+  const r = h?.recent;
+  if (!r || !r.pa || !h.pa) return 1;
+  const seasonRate = h.hr / h.pa || LG.HRPA;
+  // 120-PA prior toward the season rate, then dampened by sample size —
+  // 8 PA of heat barely registers, a full hot month moves the needle
+  const shrunk = (r.hr + seasonRate * 120) / (r.pa + 120);
+  const delta = (shrunk / seasonRate - 1) * (r.pa / (r.pa + 60));
+  return 1 + clamp(delta, -0.12, 0.12);
+}
+
 function fairOdds(p) {
   if (p <= 0) return "—";
   return p < 0.5 ? "+" + Math.round(100 * (1 - p) / p) : "-" + Math.round(100 * p / (1 - p));
@@ -645,6 +677,18 @@ function hitterScore(envHR, starterVuln, penVuln, blendedOps) {
 }
 
 /* ---------- Data loading ---------- */
+
+// Game-time display: ET (baseball's clock) or the viewer's local time
+function localTzAbbr() {
+  try { return new Date().toLocaleTimeString("en-US", { timeZoneName: "short" }).split(" ").pop(); }
+  catch (e) { return "local"; }
+}
+function fmtGameTime(iso) {
+  const d = new Date(iso);
+  if ((state.tz || "ET") === "ET")
+    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" }) + " ET";
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) + " " + localTzAbbr();
+}
 
 // MLB's "day" runs on US Eastern time — use ET for the default date so late-night
 // west-coast viewers still see the right slate.
@@ -706,6 +750,73 @@ async function loadParkFactors(season) {
   } catch (e) { return null; }
 }
 
+/* ---------- Recent contact quality (Statcast batted-ball search) ---------- */
+const CONTACT_CACHE = "slatepal_contact"; // aggregated per-player; refreshed daily
+
+// Aggregate raw Statcast batted-ball rows -> per-batter {bbe, barrels, hh}
+function aggregateBBE(rows) {
+  if (!rows || rows.length < 2) return null;
+  const hd = rows[0].map(s => s.trim().toLowerCase());
+  const iB = hd.indexOf("batter"), iEV = hd.indexOf("launch_speed"), iLSA = hd.indexOf("launch_speed_angle");
+  if (iB < 0 || iEV < 0) return null;
+  const players = {};
+  for (let i = 1; i < rows.length; i++) {
+    const id = parseInt(rows[i][iB]);
+    const ev = parseFloat(rows[i][iEV]);
+    if (!id || isNaN(ev)) continue; // untracked balls can't grade contact
+    const p = players[id] = players[id] || { bbe: 0, barrels: 0, hh: 0 };
+    p.bbe++;
+    if (ev >= 95) p.hh++;
+    if (iLSA >= 0 && parseInt(rows[i][iLSA]) === 6) p.barrels++;
+  }
+  return players;
+}
+// Season barrel% per player from the exit-velocity leaderboard CSV
+function parseSeasonBrl(rows) {
+  if (!rows || rows.length < 2) return null;
+  const hd = rows[0].map(s => s.trim().toLowerCase());
+  const iId = hd.findIndex(h => h === "player_id");
+  const iBrl = hd.findIndex(h => h.includes("brl_percent"));
+  if (iId < 0 || iBrl < 0) return null;
+  const out = {};
+  for (let i = 1; i < rows.length; i++) {
+    const id = parseInt(rows[i][iId]);
+    const b = parseFloat(rows[i][iBrl]);
+    if (id && !isNaN(b)) out[id] = b / 100;
+  }
+  return out;
+}
+async function loadContact(season) {
+  try {
+    const todayKey = easternISODate();
+    const c = storeGet(CONTACT_CACHE);
+    if (c && c.date === todayKey && c.players) return c;
+    const lb = await fetch(`https://baseballsavant.mlb.com/leaderboard/statcast?type=batter&year=${season}&csv=true`);
+    if (!lb.ok) return null;
+    const seasonBrl = parseSeasonBrl(parseCSV(await lb.text()));
+    if (!seasonBrl || Object.keys(seasonBrl).length < 100) return null;
+    const gt = shiftDate(todayKey, -14);
+    const r = await fetch(`https://baseballsavant.mlb.com/statcast_search/csv?all=true&type=details&player_type=batter` +
+      `&game_date_gt=${gt}&game_date_lt=${todayKey}&hfPR=hit%5C.%5C.into%5C.%5C.play%7C&min_results=0`);
+    if (!r.ok) return null;
+    const players = aggregateBBE(parseCSV(await r.text()));
+    if (!players || Object.keys(players).length < 100) return null;
+    const out = { date: todayKey, players, seasonBrl };
+    storeSet(CONTACT_CACHE, out);
+    return out;
+  } catch (e) { return null; }
+}
+// Contact-form multiplier: recent barrel rate vs his own season rate,
+// dampened by batted-ball count, capped at ±10%.
+function contactFactor(pid, contact) {
+  const p = contact?.players?.[pid];
+  if (!p || !p.bbe) return { cf: 1 };
+  const recentBrl = p.barrels / p.bbe;
+  const base = contact.seasonBrl?.[pid] ?? 0.08; // league-ish fallback
+  const delta = (recentBrl - base) * (p.bbe / (p.bbe + 25));
+  return { cf: 1 + clamp(delta * 1.2, -0.10, 0.10), recentBrl, seasonBrl: base, bbe: p.bbe, hhPct: p.hh / p.bbe };
+}
+
 async function loadSlate(dateISO) {
   const season = dateISO.slice(0, 4);
   const sched = await getJSON(
@@ -742,12 +853,16 @@ async function loadSlate(dateISO) {
     const chunk = hids.slice(i, i + 100);
     const hd = await getJSON(
       `https://statsapi.mlb.com/api/v1/people?personIds=${chunk.join(",")}` +
-      `&hydrate=stats(group=[hitting],type=[season,statSplits],sitCodes=[vl,vr],season=${season})`);
+      `&hydrate=stats(group=[hitting],type=[season,statSplits,lastXGames],sitCodes=[vl,vr],limit=15,season=${season})`);
     for (const p of hd.people || []) {
-      let season_ = {}, vsL = null, vsR = null;
+      let season_ = {}, vsL = null, vsR = null, recent = null;
       for (const st of p.stats || []) {
         const tname = st.type?.displayName;
         if (tname === "season") season_ = st.splits?.[0]?.stat || {};
+        else if (tname === "lastXGames") {
+          const rs = st.splits?.[0]?.stat;
+          if (rs) recent = { hr: rs.homeRuns || 0, pa: rs.plateAppearances || 0 };
+        }
         else if (tname === "statSplits") {
           for (const sp of st.splits || []) {
             const o = { ops: parseFloat(sp.stat?.ops) || 0, pa: sp.stat?.plateAppearances || 0,
@@ -761,7 +876,7 @@ async function loadSlate(dateISO) {
         name: p.fullName, bat: p.batSide?.code || "?",
         ops: parseFloat(season_.ops) || 0, hr: season_.homeRuns || 0,
         slg: parseFloat(season_.slg) || 0, pa: season_.plateAppearances || 0,
-        vsL, vsR,
+        vsL, vsR, recent,
       };
     }
   }
@@ -858,11 +973,15 @@ async function loadSlate(dateISO) {
     try {
       const hd = await getJSON(
         `https://statsapi.mlb.com/api/v1/people?personIds=${extraIds.slice(i, i + 100).join(",")}` +
-        `&hydrate=stats(group=[hitting],type=[season,statSplits],sitCodes=[vl,vr],season=${season})`);
+        `&hydrate=stats(group=[hitting],type=[season,statSplits,lastXGames],sitCodes=[vl,vr],limit=15,season=${season})`);
       for (const p of hd.people || []) {
-        let season_ = {}, vsL = null, vsR = null;
+        let season_ = {}, vsL = null, vsR = null, recent = null;
         for (const st of p.stats || []) {
           if (st.type?.displayName === "season") season_ = st.splits?.[0]?.stat || {};
+          else if (st.type?.displayName === "lastXGames") {
+            const rs = st.splits?.[0]?.stat;
+            if (rs) recent = { hr: rs.homeRuns || 0, pa: rs.plateAppearances || 0 };
+          }
           else if (st.type?.displayName === "statSplits") {
             for (const sp of st.splits || []) {
               const o = { ops: parseFloat(sp.stat?.ops) || 0, pa: sp.stat?.plateAppearances || 0,
@@ -874,7 +993,7 @@ async function loadSlate(dateISO) {
         }
         hitters[p.id] = { name: p.fullName, bat: p.batSide?.code || "?",
           ops: parseFloat(season_.ops) || 0, hr: season_.homeRuns || 0,
-          slg: parseFloat(season_.slg) || 0, pa: season_.plateAppearances || 0, vsL, vsR };
+          slg: parseFloat(season_.slg) || 0, pa: season_.plateAppearances || 0, vsL, vsR, recent };
       }
     } catch (e) { break; }
   }
@@ -886,6 +1005,9 @@ async function loadSlate(dateISO) {
   // --- Live park factors (Savant; weekly cache; embedded table is fallback) ---
   const liveParks = await loadParkFactors(season);
 
+  // --- Recent contact quality (Savant; daily cache; optional) ---
+  const contact = await loadContact(season);
+
   // --- Statcast xHR (Baseball Savant; optional — sim falls back to raw rates) ---
   let xhrMap = {};
   try {
@@ -893,7 +1015,7 @@ async function loadSlate(dateISO) {
     if (resp.ok) xhrMap = buildXHRMap(await resp.text());
   } catch (e) { /* statcast optional */ }
 
-  return { games, pitchers, hitters, teamOps, wxByGame, pens, teamRegulars, xhrMap, liveParks };
+  return { games, pitchers, hitters, teamOps, wxByGame, pens, teamRegulars, xhrMap, liveParks, contact };
 }
 
 /* ---------- Assemble + render ---------- */
@@ -969,6 +1091,8 @@ function buildModel(data) {
       .filter(p => p.result?.event === "Home Run")
       .map(p => ({ desc: (p.result.description || "").split(". ")[0] + ".",
                    inning: p.about?.inning, half: p.about?.halfInning,
+                   rbi: p.result?.rbi ?? null,
+                   itp: /inside[- ]the[- ]park/i.test(p.result?.description || ""),
                    batterId: p.matchup?.batter?.id || null,
                    batterName: p.matchup?.batter?.fullName || null }));
 
@@ -1030,7 +1154,7 @@ function pitcherHTML(label, p, v, pen) {
 
 /* ---------- HR simulation runner ---------- */
 
-function runHRSim(model, hitters, dateISO, xhrMap = {}) {
+function runHRSim(model, hitters, dateISO, xhrMap = {}, contact = null) {
   const rng = mulberry32(hashStr(dateISO));
   const results = [];
   for (const m of model) {
@@ -1051,14 +1175,19 @@ function runHRSim(model, hitters, dateISO, xhrMap = {}) {
         if (!h || h.pa < 100 || slot > 8) return;
         // Statcast quality-of-contact adjustment (1.0 when no xHR data)
         const xf = xhrFactor(xhrMap[id]);
+        // recent-form nudge (last 15 games, shrunk + capped)
+        const ff = formFactor(h);
+        // recent contact quality (barrel rate last 14 days vs his season norm)
+        const ct = contactFactor(id, contact);
+        const qual = xf * ff * ct.cf;
         // vs starter: his split for the starter's hand, in the park factor for
         // the side he'll bat from (switch hitters flip to face the pitcher)
-        const pSP = hrProbPA(hitterHRRate(h, s.starterHand) * xf, spRate,
+        const pSP = hrProbPA(hitterHRRate(h, s.starterHand) * qual, spRate,
           envSide(battingSideVs(h.bat, s.starterHand)));
         // vs pen: blend facing-LHP and facing-RHP scenarios by the pen's
         // innings mix — each with its own split AND its own park side
-        const pPenVsL = hrProbPA(hitterHRRate(h, "L") * xf, penRate, envSide(battingSideVs(h.bat, "L")));
-        const pPenVsR = hrProbPA(hitterHRRate(h, "R") * xf, penRate, envSide(battingSideVs(h.bat, "R")));
+        const pPenVsL = hrProbPA(hitterHRRate(h, "L") * qual, penRate, envSide(battingSideVs(h.bat, "L")));
+        const pPenVsR = hrProbPA(hitterHRRate(h, "R") * qual, penRate, envSide(battingSideVs(h.bat, "R")));
         const pPen = s.penMixL * pPenVsL + (1 - s.penMixL) * pPenVsR;
         const expPAFull = EXP_PA_AWAY[clamp(slot, 0, 8)] - (s.isHome ? 0.12 : 0);
         let p;
@@ -1072,18 +1201,19 @@ function runHRSim(model, hitters, dateISO, xhrMap = {}) {
         const hrToday = (m.hrPlays || []).filter(hp => hp.batterId === id).length;
         // baseline: same hitter in a neutral park, average weather, average
         // pitcher — the reference his situational lift is measured against
-        const basePA = hrProbPA((h.pa ? h.hr / h.pa : LG.HRPA) * xf, LG.HRPA, 1.0);
+        const basePA = hrProbPA((h.pa ? h.hr / h.pa : LG.HRPA) * qual, LG.HRPA, 1.0);
         const pBase = 1 - Math.pow(1 - basePA, mode === "live" ? expPAFull * remFrac : expPAFull);
         results.push({ name: h.name, bat: h.bat, stance: stanceInfo(h), team: s.team, game: gameLabel, slot: slot + 1,
           projected: s.projected, p, pBase, envHR: m.envHR, spHand: s.starterHand || "?",
-          seasonHR: h.hr, xhr: xhrMap[id]?.xhr ?? null, xf, pPA: pSP, mode, pid: id, hrToday,
+          seasonHR: h.hr, xhr: xhrMap[id]?.xhr ?? null, xf, ff, ct, recent: h.recent || null, pPA: pSP, mode, pid: id, hrToday,
           why: {
             side, parkSide: parkHRForSide(m.park, side),
             wadjHR: m.wadj?.hr || 0, roofClosed: !!m.wadj?.roofClosed,
             windOut: m.wadj?.out || 0, temp: m.wx?.tempF ?? null,
             spName: s.starterName || null, spHR9: s.starterStat?.homeRunsPer9,
             spK9: s.starterStat?.strikeoutsPer9Inn,
-            rateVsSP: hitterHRRate(h, s.starterHand) * xf, overallRate: h.pa ? h.hr / h.pa : 0,
+            rateVsSP: hitterHRRate(h, s.starterHand) * qual, overallRate: h.pa ? h.hr / h.pa : 0,
+            splitRatio: hitterHRRate(h, s.starterHand) / ((h.pa ? h.hr / h.pa : 0) || LG.HRPA),
             penHR9: s.penStat?.homeRunsPer9, penMixL: s.penMixL,
             pSP, pPen, expPA: expPAFull,
           } });
@@ -1108,7 +1238,7 @@ function buildReportCard(model, results) {
     for (const p of m.hrPlays) {
       const r = p.batterId != null ? byPid[p.batterId] : null;
       rows.push({ game: gameLabel, name: p.batterName || (p.desc.split(" homers")[0]), inning: p.inning,
-        modeled: !!r, p: r?.p ?? null, rank: r?.rank ?? null, of: retro.length });
+        type: hrTypeLabel(p), modeled: !!r, p: r?.p ?? null, rank: r?.rank ?? null, of: retro.length });
     }
   }
   const modeled = rows.filter(r => r.modeled);
@@ -1126,6 +1256,18 @@ function simTier(p) {
 }
 
 function ordinal(n) { const s = ["th","st","nd","rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+
+// What kind of homer was it? solo / 2-run / 3-run / grand slam (+ inside-the-park)
+function hrTypeLabel(p) {
+  if (!p) return "";
+  const base = p.rbi === 4 ? "grand slam" : p.rbi === 3 ? "3-run" : p.rbi === 2 ? "2-run" : p.rbi === 1 ? "solo" : "";
+  return p.itp ? (base ? base + " \u00B7 inside-the-park \u{1F3C3}" : "inside-the-park \u{1F3C3}") : base;
+}
+function hrTypeChip(p) {
+  const label = hrTypeLabel(p);
+  if (!label) return "";
+  return ` <span class="badge ${p.rbi === 4 ? "lg-hit" : "b-md"}">${p.rbi === 4 ? "\u{1F4A5} GRAND SLAM" : label}</span>`;
+}
 
 // Plain-language breakdown of why a hitter's HR chance is what it is
 function whyHTML(r) {
@@ -1156,9 +1298,54 @@ function whyHTML(r) {
         : `unchanged — ${r.xhr.toFixed(0)} xHR ≈ ${r.seasonHR} actual`;
     bits.push(`<b>Contact quality:</b> rate ${d}.`);
   }
+  if (r.ct?.bbe >= 10 && Math.abs((r.ct.cf || 1) - 1) >= 0.02) {
+    bits.push(`<b>Contact (last 14 days):</b> ${(r.ct.recentBrl * 100).toFixed(0)}% barrel rate vs ${(r.ct.seasonBrl * 100).toFixed(0)}% season on ${r.ct.bbe} batted balls (${(r.ct.hhPct * 100).toFixed(0)}% hard-hit) — rate ${r.ct.cf > 1 ? "boosted" : "trimmed"} ${Math.abs(Math.round((r.ct.cf - 1) * 100))}%.`);
+  }
+  if (r.recent && r.recent.pa >= 20 && Math.abs((r.ff || 1) - 1) >= 0.03) {
+    bits.push(`<b>Form:</b> ${r.recent.hr} HR in his last 15 games (${r.recent.pa} PA) — rate ${r.ff > 1 ? "boosted" : "trimmed"} ${Math.abs(Math.round((r.ff - 1) * 100))}%.`);
+  }
   if (w.penHR9) bits.push(`<b>Bullpen later:</b> that pen allows ${w.penHR9} HR/9${w.penMixL != null ? ` with ${Math.round(w.penMixL * 100)}% lefty innings` : ""}; his pen-adjusted rate is ${(w.pPen * 100).toFixed(1)}% per PA.`);
   bits.push(`<b>Bottom line:</b> ≈${(w.pSP * 100).toFixed(1)}% per PA vs the starter across ~${w.expPA ? w.expPA.toFixed(1) : "4+"} expected PAs from the ${ordinal(r.slot)} slot → <b>${(r.p * 100).toFixed(1)}%</b> to homer (1 in ${Math.max(2, Math.round(1 / r.p))})${r.mode === "live" ? " — rest of game only" : ""}.`);
   return bits.map(b => `<div style="margin-bottom:3px">${b}</div>`).join("");
+}
+
+// Compact hot/cold read for the sim table: contact quality first (most
+// predictive), HR-count form as fallback. 🔥 = heating up, ❄ = cooling off.
+function heatCell(r) {
+  const cf = r.ct?.cf || 1, ff = r.ff || 1;
+  if (r.ct?.bbe >= 10 && cf >= 1.04)
+    return `<span class="heat-hot" title="Barrels spiking: ${(r.ct.recentBrl * 100).toFixed(0)}% of batted balls barreled in the last 14 days vs ${(r.ct.seasonBrl * 100).toFixed(0)}% season — his rate is boosted">\u{1F525}</span><span>${(r.ct.recentBrl * 100).toFixed(0)}% brl</span>`;
+  if (r.ct?.bbe >= 10 && cf <= 0.96)
+    return `<span class="heat-cold" title="Weak contact: ${(r.ct.recentBrl * 100).toFixed(0)}% barrels last 14 days vs ${(r.ct.seasonBrl * 100).toFixed(0)}% season — his rate is trimmed">❄</span><span>${(r.ct.recentBrl * 100).toFixed(0)}% brl</span>`;
+  if (r.recent && ff >= 1.05)
+    return `<span class="heat-hot" title="Hot results: ${r.recent.hr} HR in his last 15 games — rate boosted">\u{1F525}</span><span>${r.recent.hr} HR/15</span>`;
+  if (r.recent && ff <= 0.95)
+    return `<span class="heat-cold" title="Cold results: ${r.recent.hr} HR in his last 15 games — rate trimmed">❄</span><span>${r.recent.hr} HR/15</span>`;
+  return '<span></span><span class="note" title="No strong recent signal either way">—</span>';
+}
+
+// Heat-grid cell: dev in [-1, 1]; green tint = boosts the hitter, red = hurts.
+// Numbers stay printed in every cell — color is a scanning aid, never the data.
+function shadeCell(dev, text, title) {
+  const d = clamp(dev || 0, -1, 1);
+  const a = Math.min(0.5, Math.abs(d) * 0.5);
+  const bg = d > 0.02 ? `rgba(34,170,60,${a.toFixed(2)})` : d < -0.02 ? `rgba(224,70,70,${a.toFixed(2)})` : "transparent";
+  return `<td class="gc" style="background:${bg}" title="${esc(title)}">${text}</td>`;
+}
+function gridCells(r) {
+  const w = r.why || {};
+  const cells = [];
+  cells.push(shadeCell((w.parkSide - 100) / 30, w.parkSide ?? "—", `Park HR factor for his batting side (100 = neutral)`));
+  cells.push(w.roofClosed
+    ? shadeCell(0, "roof", "Roof closed — weather neutral")
+    : shadeCell((w.wadjHR || 0) / 15, `${w.wadjHR >= 0 ? "+" : ""}${Math.round(w.wadjHR || 0)}`, "Weather HR-index points (temp + wind for this park)"));
+  const hr9 = parseFloat(w.spHR9);
+  cells.push(shadeCell(isNaN(hr9) ? 0 : (hr9 - 1.16) / 0.6, isNaN(hr9) ? "—" : hr9.toFixed(1), "Starter's HR/9 allowed (league ≈ 1.16)"));
+  cells.push(shadeCell(((w.splitRatio || 1) - 1) / 0.4, w.splitRatio ? (w.splitRatio).toFixed(2) + "×" : "—", "His HR rate vs this pitcher hand relative to his overall rate"));
+  cells.push(shadeCell(((r.xf || 1) - 1) / 0.25, r.xhr != null ? `${r.xf >= 1 ? "+" : ""}${Math.round((r.xf - 1) * 100)}%` : "—", "Statcast xHR luck adjustment"));
+  cells.push(shadeCell(((r.ff || 1) - 1) / 0.12, r.recent ? `${r.recent.hr}/15g` : "—", "HR count over his last 15 games (form adjustment)"));
+  cells.push(shadeCell(((r.ct?.cf || 1) - 1) / 0.10, r.ct?.bbe >= 10 ? `${(r.ct.recentBrl * 100).toFixed(0)}%` : "—", "Barrel rate last 14 days vs his season norm (contact adjustment)"));
+  return cells.join("");
 }
 
 function renderSimResults(allResults, team = "ALL") {
@@ -1177,7 +1364,10 @@ function renderSimResults(allResults, team = "ALL") {
     }
   }
   played.sort((a, b) => a.ab.localeCompare(b.ab));
-  const shown = team === "ALL" ? results.slice(0, 20) : results.filter(r => r.team === team);
+  const game = state.simGame || "ALL";
+  const games = [...new Set(results.map(r => r.game))].sort();
+  const shown = game !== "ALL" ? results.filter(r => r.game === game)
+    : team === "ALL" ? results.slice(0, 20) : results.filter(r => r.team === team);
   const anyProjected = shown.some(r => r.projected);
   out.innerHTML = `
     <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
@@ -1188,7 +1378,14 @@ function renderSimResults(allResults, team = "ALL") {
         ${played.length ? `<option disabled>──────────</option>` : ""}
         ${played.map(p => `<option disabled>${esc(p.ab)} — ${p.why}</option>`).join("")}
       </select>
-      <span class="note">${team === "ALL" ? `showing top 20 of ${results.length} hitters simulated` : `all ${shown.length} ${esc(team)} hitters, slate rank shown`}</span>
+      <label class="note" for="simgame"><b>Game:</b></label>
+      <select id="simgame">
+        <option value="ALL"${game === "ALL" ? " selected" : ""}>All games</option>
+        ${games.map(g => `<option value="${esc(g)}"${g === game ? " selected" : ""}>${esc(g)}</option>`).join("")}
+      </select>
+      <button id="viewtg" class="minibtn" title="Switch between the standard table and the color-graded factor grid">${state.simView === "grid" ? "Standard view" : "\u{1F7E9} Grid view"}</button>
+      <span class="note">${game !== "ALL" ? `all ${shown.length} hitters in ${esc(game)}, slate rank shown`
+        : team === "ALL" ? `showing top 20 of ${results.length} hitters simulated` : `all ${shown.length} ${esc(team)} hitters, slate rank shown`}</span>
     </div>
     ${shown.length ? (() => {
       const ex = shown[0];
@@ -1203,9 +1400,12 @@ function renderSimResults(allResults, team = "ALL") {
     })() : ""}
     <div class="tscroll"><table style="margin-top:8px"><thead><tr><th></th>
       <th title="Rank across the whole slate">Rank</th><th>Hitter</th><th>Game</th>
-      <th class="num opt" title="Batting order position — higher up bats more often">Bats</th>
+      ${state.simView === "grid"
+        ? `<th class="gc" title="Park HR factor for his side">Park</th><th class="gc" title="Weather HR points">Wx</th><th class="gc" title="Starter HR/9">SP</th><th class="gc" title="Split edge vs this hand">Split</th><th class="gc" title="xHR luck">xHR</th><th class="gc" title="HR last 15 games">Form</th><th class="gc" title="Barrel rate last 14 days">Brl</th>`
+        : `<th class="num opt" title="Batting order position — higher up bats more often">Bats</th>
       <th class="opt" title="Starting pitcher's throwing hand">Starter</th>
-      <th class="num opt" title="Actual homers · Statcast expected homers">HR · xHR</th>
+      <th class="xhr opt" title="Actual homers · Statcast expected homers">HR · xHR</th>
+      <th class="heat" title="Recent heat: barrel rate last 14 days vs his season norm (or HR count last 15 games). This is what’s driving hot/cold adjustments — 🔥 bats are boosted before their homer totals catch up.">Heat</th>`}
       <th class="num" title="Chance of at least one homer today">HR chance</th>
       <th class="num" title="Break-even sportsbook price for that chance — not a real line">Fair price</th><th></th></tr></thead>
     <tbody>${(() => {
@@ -1215,16 +1415,17 @@ function renderSimResults(allResults, team = "ALL") {
       const canBet = state.date >= easternISODate(); // today or a future slate
       return shown.map(r => {
       const [word, cls] = simTier(r.p);
-      const luck = r.xhr == null ? "" : r.xf > 1.05 ? ' <span style="color:var(--hot)" title="unlucky — boosted">↑</span>'
-        : r.xf < 0.95 ? ' <span style="color:var(--cold)" title="lucky — discounted">↓</span>' : "";
+      const luck = r.xhr == null ? "" : r.xf > 1.05 ? '<span style="color:var(--hot)" title="unlucky — boosted">↑</span>'
+        : r.xf < 0.95 ? '<span style="color:var(--cold)" title="lucky — discounted">↓</span>' : "";
       const st = r.stance || {};
       const stanceHTML = st.code === "S"
         ? ` <span class="stance" title="Switch hitter — bolded letter is his stronger side (by split OPS)">${st.dom ? "<b>" + st.dom + "</b>" : ""}S</span>`
         : st.code && st.code !== "?" ? ` <span class="stance" title="Bats ${st.code === "L" ? "left" : "right"}-handed">${st.code}</span>` : "";
       return `<tr><td class="rowctl"><button class="xbtn whytg" data-pid="${r.pid}" data-mode="${esc(r.mode)}" title="Why? — expand the breakdown">▸</button>${canBet ? `<button class="xbtn addtg" data-pid="${r.pid}" data-mode="${esc(r.mode)}" title="${myPids.has(r.pid) ? "On my ticket — click to remove" : "Add to my ticket"}">${myPids.has(r.pid) ? "✓" : "+"}</button>` : ""}</td>
         <td>#${results.indexOf(r) + 1}</td><td class="name">${esc(r.name)}${stanceHTML}${palPids.has(r.pid) && r.mode !== "final" ? ' <span class="palmark" title="Pal’s pick — this hitter is a leg on Pal’s suggested ticket">🤖</span>' : ""}${r.projected ? " *" : ""}${r.mode === "live" ? ' <span class="livedot" title="Game in progress — chance covers the rest of the game only"></span>' : ""}</td>
-        <td>${esc(r.game)}</td><td class="num opt">${ordinal(r.slot)}</td><td class="opt">${r.spHand === "L" ? "Lefty" : r.spHand === "R" ? "Righty" : "TBD"}</td>
-        <td class="num opt">${r.seasonHR} · ${r.xhr != null ? r.xhr.toFixed(0) : "—"}${luck}</td>
+        <td>${esc(r.game)}</td>${state.simView === "grid" ? gridCells(r) : `<td class="num opt">${ordinal(r.slot)}</td><td class="opt">${r.spHand === "L" ? "Lefty" : r.spHand === "R" ? "Righty" : "TBD"}</td>
+        <td class="xhr opt"><span class="xa">${r.seasonHR}</span><span class="xsep">·</span><span class="xb">${r.xhr != null ? r.xhr.toFixed(0) : "—"}</span><span class="xar">${luck}</span></td>
+        <td class="heat">${heatCell(r)}</td>`}
         <td class="num"><b>${(r.p * 100).toFixed(1)}%</b> <span class="note oneinn">(1 in ${Math.max(2, Math.round(1 / r.p))} games)</span></td>
         <td class="num">${fairOdds(r.p)}</td>
         <td><span class="badge ${cls}">${word}</span></td></tr>`;
@@ -1238,7 +1439,11 @@ function renderSimResults(allResults, team = "ALL") {
     <b>Fair odds are calculated from the simulation — they are not sportsbook lines.</b>
     They’re the break-even price for the simulated probability: if your book offers <i>longer</i> odds than fair, the model sees value; <i>shorter</i>, no edge.
     Re-running gives identical results for the same slate; hit Refresh first to pick up newly posted lineups.</p>`;
-  $("#simteam").onchange = e => { state.simTeam = e.target.value; renderSimResults(allResults, e.target.value); };
+  $("#simteam").onchange = e => { state.simTeam = e.target.value; state.simGame = "ALL"; renderSimResults(allResults, e.target.value); };
+  const gsel = $("#simgame");
+  if (gsel) gsel.onchange = e => { state.simGame = e.target.value; state.simTeam = "ALL"; renderSimResults(allResults, "ALL"); };
+  const vtg = $("#viewtg");
+  if (vtg) vtg.onclick = () => { state.simView = state.simView === "grid" ? "table" : "grid"; renderSimResults(allResults, team); };
 
   // ▸ expands a per-hitter "why" breakdown row
   document.querySelectorAll("#simout .whytg").forEach(btn => btn.onclick = () => {
@@ -1248,7 +1453,7 @@ function renderSimResults(allResults, team = "ALL") {
     const r = results.find(x => String(x.pid) === btn.dataset.pid && x.mode === btn.dataset.mode);
     const row = document.createElement("tr");
     row.className = "whyrow";
-    row.innerHTML = `<td colspan="10">${whyHTML(r)}</td>`;
+    row.innerHTML = `<td colspan="14">${whyHTML(r)}</td>`;
     tr.after(row);
     btn.textContent = "▾";
   });
@@ -1294,6 +1499,10 @@ function legReason(r) {
   if (w.parkSide >= 108) bits.push(`park plays ${w.parkSide} for his side`);
   if (w.wadjHR >= 5) bits.push(`weather adds ${Math.round(w.wadjHR)} HR-index pts`);
   if (r.xf >= 1.05 && r.xhr != null) bits.push(`Statcast says unlucky (${r.xhr.toFixed(0)} xHR vs ${r.seasonHR} actual)`);
+  if ((r.ct?.cf || 1) >= 1.04) bits.push(`barrels spiking — ${(r.ct.recentBrl * 100).toFixed(0)}% last 2 wks vs ${(r.ct.seasonBrl * 100).toFixed(0)}% season`);
+  if ((r.ct?.cf || 1) <= 0.96) bits.push(`⚠ weak contact lately (${(r.ct.recentBrl * 100).toFixed(0)}% barrels)`);
+  if ((r.ff || 1) >= 1.05 && r.recent) bits.push(`hot bat — ${r.recent.hr} HR in his last 15 games`);
+  if ((r.ff || 1) <= 0.95 && r.recent) bits.push(`⚠ cold stretch (${r.recent.hr} HR last 15) — rate trimmed`);
   if (r.slot <= 4) bits.push(`bats ${ordinal(r.slot)} (max PAs)`);
   if (r.mode === "live") bits.push("rest-of-game leg");
   if (r.projected) bits.push("⚠ lineup not posted yet");
@@ -1324,14 +1533,15 @@ function gradeParlay(picks, model) {
   const legs = picks.map(pk => {
     const m = byLabel[pk.game];
     let status = "pending";
+    let hrType = "";
     if (m) {
       // a leg cashes only on homers BEYOND his count when the leg was placed
-      const hrCount = (m.hrPlays || []).filter(hp => hp.batterId === pk.pid).length;
-      if (hrCount > (pk.baseHR || 0)) status = "hit";
+      const mine = (m.hrPlays || []).filter(hp => hp.batterId === pk.pid);
+      if (mine.length > (pk.baseHR || 0)) { status = "hit"; hrType = hrTypeLabel(mine[pk.baseHR || 0]); }
       else if (m.gstate === "final") status = "miss";
       else if (m.gstate === "live") status = "live";
     }
-    return { ...pk, status };
+    return { ...pk, status, hrType };
   });
   const hits = legs.filter(l => l.status === "hit").length;
   const ticket = legs.some(l => l.status === "miss") ? "busted"
@@ -1384,6 +1594,24 @@ function ticketStoreFor(key) {
   for (const k of Object.keys(all)) if (k < cutoff) delete all[k];
   return all;
 }
+// The same legs bet as equal-stake SINGLES at each leg's fair price.
+// Returns settled P/L so far plus the ladder of outcomes ("1 hit pays…").
+function singlesPL(gradedLegs, totalStake) {
+  const n = gradedLegs.length;
+  if (!n) return null;
+  const per = totalStake / n;
+  let pl = 0, settled = 0, hits = 0;
+  for (const l of gradedLegs) {
+    if (l.status === "hit") { pl += per * (1 / l.p - 1); settled++; hits++; }
+    else if (l.status === "miss") { pl -= per; settled++; }
+  }
+  // outcome ladder at fair prices, using average leg odds for simplicity
+  const avgDec = gradedLegs.reduce((a, l) => a + 1 / l.p, 0) / n;
+  const ladder = [];
+  for (let k = 1; k <= n; k++) ladder.push({ k, net: k * per * (avgDec - 1) - (n - k) * per });
+  return { pl, settled, hits, n, per, ladder };
+}
+
 function getMyTicket() {
   const t = ticketStoreFor(MYTICKET_KEY)[state.date];
   return t && t.picks ? { date: state.date, ...t } : null;
@@ -1416,6 +1644,62 @@ function setSaved(entry) {
   storeSet(SAVED_KEY, all);
 }
 
+// ---- Pal vs You lifetime record (per-day snapshots, pruned at 60 days) ----
+const RECORD_KEY = "slatepal_record";
+function updateRecord() {
+  const all = storeGet(RECORD_KEY) || {};
+  const entry = {};
+  const lock = storeGet(PARLAY_KEY);
+  if (lock && lock.date === state.date && lock.picks?.length) {
+    const g = gradeParlay(lock.picks, state.model || []);
+    entry.pal = { legs: lock.picks.length, hits: g.hits, won: g.ticket === "cashed" ? 1 : 0 };
+  }
+  const saved = getSaved();
+  if (saved.tickets.length) {
+    let legs = 0, hits = 0, won = 0, plParlay = 0, plSingles = 0;
+    for (const tk of saved.tickets) {
+      const g = gradeParlay(tk.picks, state.model || []);
+      legs += tk.picks.length; hits += g.hits;
+      const stake = tk.stake ?? 10;
+      const p = tk.picks.reduce((a, r) => a * r.p, 1);
+      const pay = payoutInfo(p, stake, tk.book ?? "");
+      const winProfit = pay.bookProfit ?? pay.fairProfit;
+      if (g.ticket === "cashed") { won++; plParlay += winProfit; }
+      else if (g.ticket === "busted") plParlay -= stake;
+      const sp = singlesPL(g.legs, stake);
+      if (sp) plSingles += sp.pl;
+    }
+    entry.you = { tickets: saved.tickets.length, legs, hits, won, plParlay, plSingles };
+  }
+  if (entry.pal || entry.you) {
+    all[state.date] = entry;
+    const cutoff = shiftDate(easternISODate(), -60);
+    for (const k of Object.keys(all)) if (k < cutoff) delete all[k];
+    storeSet(RECORD_KEY, all);
+  }
+  return all;
+}
+function recordTotals(all) {
+  const t = { pal: { legs: 0, hits: 0, won: 0, days: 0 }, you: { legs: 0, hits: 0, won: 0, tickets: 0, plParlay: 0, plSingles: 0 } };
+  for (const e of Object.values(all || {})) {
+    if (e.pal) { t.pal.legs += e.pal.legs; t.pal.hits += e.pal.hits; t.pal.won += e.pal.won; t.pal.days++; }
+    if (e.you) { t.you.legs += e.you.legs; t.you.hits += e.you.hits; t.you.won += e.you.won; t.you.tickets += e.you.tickets;
+      t.you.plParlay += e.you.plParlay || 0; t.you.plSingles += e.you.plSingles || 0; }
+  }
+  return t;
+}
+function renderRecordTile() {
+  const v = $("#pvyou-v"), d = $("#pvyou-d");
+  if (!v) return;
+  const t = recordTotals(updateRecord());
+  const pct = (h, l) => l ? Math.round(h / l * 100) + "%" : "—";
+  if (!t.pal.legs && !t.you.legs) { v.textContent = "—"; d.textContent = "builds as tickets settle"; return; }
+  v.innerHTML = `${pct(t.pal.hits, t.pal.legs)} · ${pct(t.you.hits, t.you.legs)}`;
+  const money = t.you.legs
+    ? `<br>your $ — as slips <b style="color:${t.you.plParlay >= 0 ? "var(--good)" : "var(--hot)"}">${t.you.plParlay >= 0 ? "+" : "−"}$${Math.abs(t.you.plParlay).toFixed(0)}</b> · same legs as singles <b style="color:${t.you.plSingles >= 0 ? "var(--good)" : "var(--hot)"}">${t.you.plSingles >= 0 ? "+" : "−"}$${Math.abs(t.you.plSingles).toFixed(0)}</b>` : "";
+  d.innerHTML = `legs hit — Pal ${t.pal.hits}/${t.pal.legs} (${t.pal.won} won) · You ${t.you.hits}/${t.you.legs} (${t.you.won} won)${money}`;
+}
+
 /* ---- shared ticket UI pieces ---- */
 function ticketBadgeOf(g, n) {
   return !n ? "" : g.ticket === "cashed" ? '<span class="badge lg-hit">\u{1F4B0} WON</span>'
@@ -1423,13 +1707,13 @@ function ticketBadgeOf(g, n) {
     : `<span class="badge b-md">${g.hits}/${n} hit</span>`;
 }
 function legStatusBadge(l) {
-  return l.status === "hit" ? '<span class="badge lg-hit">HIT ✓</span>'
+  return l.status === "hit" ? `<span class="badge lg-hit">HIT ✓${l.hrType ? " · " + l.hrType : ""}</span>`
     : l.status === "miss" ? '<span class="badge lg-miss">missed</span>'
     : l.status === "live" ? '<span class="badge b-md"><span class="livedot"></span>live</span>'
     : '<span class="badge b-md">not started</span>';
 }
 function slipMark(l) {
-  return l.status === "hit" ? '<span style="color:var(--good);font-weight:700">✓</span>'
+  return l.status === "hit" ? `<span style="color:var(--good);font-weight:700" title="Homered${l.hrType ? " — " + l.hrType : ""}">✓</span>`
     : l.status === "miss" ? '<span style="color:var(--hot);font-weight:700">✗</span>'
     : l.status === "live" ? '<span class="livedot" style="margin-right:0"></span>'
     : '<span style="color:var(--text-muted)">•</span>';
@@ -1553,11 +1837,16 @@ function renderParlay(results) {
     const winTotal = usingBook ? pay.bookTotal : pay.fairTotal;
     const winProfit = usingBook ? pay.bookProfit : pay.fairProfit;
     const priceDesc = usingBook ? `${esc(tk.book)}${pay.bookKind === "decimal" ? " (dec)" : ""}` : `fair ${fairOdds(sp)}`;
+    const sgl = singlesPL(g.legs, stake);
+    const singlesLine = sgl && sgl.settled === sgl.n
+      ? `<br><span class="note">Same legs as ${sgl.n} singles ($${sgl.per.toFixed(2)} each at fair): <b style="color:${sgl.pl >= 0 ? "var(--good)" : "var(--hot)"}">${sgl.pl >= 0 ? "+" : "−"}$${Math.abs(sgl.pl).toFixed(2)}</b></span>`
+      : sgl && sgl.settled > 0
+        ? `<br><span class="note">As singles so far: ${sgl.hits}/${sgl.settled} settled, ${sgl.pl >= 0 ? "+" : "−"}$${Math.abs(sgl.pl).toFixed(2)}</span>` : "";
     const foot = g.ticket === "cashed"
-      ? `Wagered <b>$${stake.toFixed(0)}</b> at ${priceDesc}<br><b style="color:var(--good)">\u{1F4B0} Won $${winProfit.toFixed(2)}</b> <span class="note">(returned $${winTotal.toFixed(2)})</span>`
+      ? `Wagered <b>$${stake.toFixed(0)}</b> at ${priceDesc}<br><b style="color:var(--good)">\u{1F4B0} Won $${winProfit.toFixed(2)}</b> <span class="note">(returned $${winTotal.toFixed(2)})</span>${singlesLine}`
       : g.ticket === "busted"
-        ? `Wagered <b>$${stake.toFixed(0)}</b> at ${priceDesc}<br><b style="color:var(--hot)">✗ Lost $${stake.toFixed(0)}</b>`
-        : `Wagered <b>$${stake.toFixed(0)}</b> at ${priceDesc}<br>To win <b>$${winTotal.toFixed(2)}</b> <span class="note">(profit $${winProfit.toFixed(2)}${usingBook ? ` · ${Math.round(pay.valuePct * 100)}% of fair` : ""})</span>`;
+        ? `Wagered <b>$${stake.toFixed(0)}</b> at ${priceDesc}<br><b style="color:var(--hot)">✗ Lost $${stake.toFixed(0)}</b>${singlesLine}`
+        : `Wagered <b>$${stake.toFixed(0)}</b> at ${priceDesc}<br>To win <b>$${winTotal.toFixed(2)}</b> <span class="note">(profit $${winProfit.toFixed(2)}${usingBook ? ` · ${Math.round(pay.valuePct * 100)}% of fair` : ""})</span>${singlesLine}`;
     return betSlipHTML({
       title: `\u{1F39F} TICKET #${i + 1}`, badge: ticketBadgeOf(g, tk.picks.length),
       sub: `${tk.picks.length === 1 ? "straight HR bet" : tk.picks.length + "-leg parlay"} · ${(sp * 100).toFixed(2)}% · fair ${fairOdds(sp)}`,
@@ -1587,6 +1876,20 @@ function renderParlay(results) {
 
   if (palOk) wireTicketPayout("pal", p, (stake, book) => { if (lock) { lock.stake = stake; lock.book = book; storeSet(PARLAY_KEY, lock); } }, true);
   if (myPicks.length) wireTicketPayout("my", myP, (stake, book) => { const t = getMyTicket(); if (t) setMyTicket({ picks: t.picks, stake, book }); });
+  // singles ladder: show what the same stake does as N straight bets at fair
+  if (myPicks.length >= 2) {
+    const upd0 = $("#mystake")?.oninput;
+    const addLadder = () => {
+      const stake = Math.max(1, parseFloat($("#mystake")?.value) || 10);
+      const sp = singlesPL(myGrade.legs, stake);
+      const out = $("#mypayout");
+      if (sp && out) out.innerHTML += `<br><b>Or bet it as ${sp.n} singles</b> ($${sp.per.toFixed(2)} each at fair prices): ${sp.ladder.map(l => `${l.k} hit${l.k > 1 ? "s" : ""} → <b style="color:${l.net >= 0 ? "var(--good)" : "var(--hot)"}">${l.net >= 0 ? "+" : "−"}$${Math.abs(l.net).toFixed(2)}</b>`).join(" · ")} <span class="note">— singles profit on a ${Math.ceil(sp.n / 2)}-of-${sp.n} night; the parlay needs all ${sp.n}.</span>`;
+    };
+    const sEl = $("#mystake"), bEl = $("#mybook");
+    if (sEl) { const prev = sEl.oninput; sEl.oninput = () => { prev(); addLadder(); }; }
+    if (bEl) { const prevB = bEl.oninput; bEl.oninput = () => { prevB(); addLadder(); }; }
+    addLadder();
+  }
   document.querySelectorAll("#parlaybody .rmleg").forEach(btn => btn.onclick = () => {
     removeFromMyTicket(parseInt(btn.dataset.pid, 10));
     renderParlay(results);
@@ -1631,6 +1934,8 @@ function shortReason(r) {
   if (w.parkSide >= 108) bits.push(`park plays ${w.parkSide} for his side`);
   if (w.wadjHR >= 5) bits.push(`weather adds ${Math.round(w.wadjHR)} pts`);
   if (r.xf >= 1.05) bits.push("Statcast says he’s been unlucky");
+  if ((r.ff || 1) >= 1.05 && r.recent) bits.push(`hot bat (${r.recent.hr} HR last 15)`);
+  if ((r.ct?.cf || 1) >= 1.04) bits.push(`barrels spiking (${(r.ct.recentBrl * 100).toFixed(0)}% last 2 wks)`);
   if (!bits.length) bits.push(`steady power, bats ${ordinal(r.slot)}`);
   return bits.slice(0, 3).join(", ");
 }
@@ -1700,8 +2005,8 @@ function renderReportCard(rc) {
       ? "Hitters who homered were rated <b>above average</b> by the model before the games — the signal is pointing the right way."
       : "Hitters who homered were rated at or below the model’s average today — normal on small daily samples, worth watching over weeks."}
     One day proves nothing either way; check this over a few weeks. (Uses current season stats, so probabilities for past games carry a small hindsight bias.)</p>
-    ${rc.rows.length ? `<div class="tscroll"><table><thead><tr><th>Homered</th><th>Game</th><th class="num opt">Inning</th><th class="num">Model chance</th><th class="num">Model rank</th></tr></thead>
-    <tbody>${rc.rows.map(r => `<tr><td class="name">${esc(r.name)}</td><td>${esc(r.game)}</td><td class="num opt">${r.inning || "—"}</td>
+    ${rc.rows.length ? `<div class="tscroll"><table><thead><tr><th>Homered</th><th>Type</th><th>Game</th><th class="num opt">Inning</th><th class="num">Model chance</th><th class="num">Model rank</th></tr></thead>
+    <tbody>${rc.rows.map(r => `<tr><td class="name">${esc(r.name)}</td><td>${r.type || '<span class="note">—</span>'}</td><td>${esc(r.game)}</td><td class="num opt">${r.inning || "—"}</td>
       <td class="num">${r.modeled ? "<b>" + (r.p * 100).toFixed(1) + "%</b>" : "not modeled"}</td>
       <td class="num">${r.modeled ? "#" + r.rank + " of " + r.of : "—"}</td></tr>`).join("")}</tbody></table></div>` : ""}
   </div>`;
@@ -1732,6 +2037,11 @@ function render(model) {
     <div class="tile"><div class="k">Best run env</div><div class="v">${fmt1(best.envRun)}</div><div class="d">${esc(best.g.venue.name)}</div></div>
     <div class="tile"><div class="k">Best HR env</div><div class="v">${fmt1(hottest.envHR)}</div><div class="d">${esc(hottest.g.venue.name)}</div></div>
     <div class="tile"><div class="k">Scale</div><div class="v">100</div><div class="d">= league average</div></div>
+    <div class="tile" id="pvyoutile" title="Lifetime scoreboard: Pal’s locked picks vs your saved slips — leg hit rates and tickets won. The honest answer to whose picks are better.">
+      <div class="k">Pal vs You</div>
+      <div class="v" id="pvyou-v">—</div>
+      <div class="d" id="pvyou-d">builds as tickets settle</div>
+    </div>
     <div class="tile" id="parlaytile">
       <div class="k">HR ticket · <label for="legs">legs</label>
         <input id="legs" type="number" min="1" max="8" value="${state.parlayLegs || 3}"></div>
@@ -1752,7 +2062,7 @@ function render(model) {
   // HR simulator first — runs automatically for games that haven't started
   html += `<div class="section-h" style="margin-top:4px">Home run simulator</div>
   <div class="card">
-    <p class="note">Plays out every hitter’s game ${SIM_N.toLocaleString()} times: his HR rate vs each pitcher hand — adjusted by Statcast expected homers (xHR) — the starter’s and bullpen’s HR-allowed rates, his lineup slot, and today’s park + weather. Upcoming games get full-game odds (${upcoming.length} now); live games get rest-of-game odds (${model.filter(x => x.gstate === "live").length} now); finished games are graded in the report card below.</p>
+    <p class="note">Plays out every hitter’s game ${SIM_N.toLocaleString()} times: his HR rate vs each pitcher hand — adjusted by Statcast expected homers (xHR), recent form (last 15 games), and last-2-weeks contact quality (barrel rate vs his own norm) — the starter’s and bullpen’s HR-allowed rates, his lineup slot, and today’s park + weather. Upcoming games get full-game odds (${upcoming.length} now); live games get rest-of-game odds (${model.filter(x => x.gstate === "live").length} now); finished games are graded in the report card below.</p>
     <button id="simbtn" style="margin-top:8px">⚾ Re-run HR simulation</button>
     <div id="simout"></div>
   </div>`;
@@ -1771,7 +2081,7 @@ function render(model) {
       ${upcoming.map(m => {
         const L = modelLines(m);
         const aAb = m.g.teams.away.team.abbreviation || "AWY", hAb = m.g.teams.home.team.abbreviation || "HME";
-        const gt = new Date(m.g.gameDate).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
+        const gt = fmtGameTime(m.g.gameDate);
         const tot = L.total.toFixed(1);
         const row = (ab, pWin, isFav, ou) => `
           <div class="mlrow">
@@ -1781,7 +2091,7 @@ function render(model) {
             <span class="oddcell"><b>${isFav ? "-1.5" : "+1.5"}</b><small>${fairOdds(isFav ? L.pFavCover : 1 - L.pFavCover)}</small></span>
           </div>`;
         return `<div class="mlgame">
-          <div class="mlhead">${esc(aAb)} @ ${esc(hAb)} <span class="note">· ${gt} ET · proj ${L.expA.toFixed(1)}–${L.expH.toFixed(1)}</span></div>
+          <div class="mlhead">${esc(aAb)} @ ${esc(hAb)} <span class="note">· ${gt} · proj ${L.expA.toFixed(1)}–${L.expH.toFixed(1)}</span></div>
           ${row(aAb, 1 - L.pHome, !L.favHome, "o")}
           ${row(hAb, L.pHome, L.favHome, "u")}
         </div>`;
@@ -1798,7 +2108,7 @@ function render(model) {
 
   html += active.map((m, i) => {
     const g = m.g;
-    const t = new Date(g.gameDate).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" }) + " ET";
+    const t = fmtGameTime(g.gameDate);
     const away = g.teams.away.team, home = g.teams.home.team;
     const liveChip = m.gstate === "live" && m.score
       ? `<span class="chip livechip"><span class="livedot"></span>${esc(m.score.half || "")} ${m.score.inning || ""} · ${esc(away.abbreviation || "")} ${m.score.away}–${m.score.home} ${esc(home.abbreviation || "")}</span>`
@@ -1834,7 +2144,7 @@ function render(model) {
         ${pitcherHTML(esc(home.abbreviation || "HME"), m.ph, m.vh, m.penH)}
       </div>
       ${m.gstate === "live" && m.hrPlays.length ? `<div class="hrlist" style="border-top:1px solid var(--grid);padding-top:8px">
-        ${m.hrPlays.map(p => `<div class="hritem">💣 <span>${esc(p.desc)}</span> <span class="note">(${esc(p.half || "")} ${p.inning || ""})</span></div>`).join("")}</div>` : ""}
+        ${m.hrPlays.map(p => `<div class="hritem">💣 <span>${esc(p.desc)}</span>${hrTypeChip(p)} <span class="note">(${esc(p.half || "")} ${p.inning || ""})</span></div>`).join("")}</div>` : ""}
       ${m.targets.length ? `<details class="targets"><summary>Hitter targets in this game (${m.targets.length})</summary>
         <div class="tscroll"><table><thead><tr><th>Hitter</th><th>Tm</th><th class="opt">B</th><th class="opt">vs</th><th class="num">OPS vs SP</th><th class="num opt">OPS vs Pen</th><th class="num">HR</th><th class="num">Target</th></tr></thead>
         <tbody>${m.targets.slice(0, 9).map(h => `<tr><td class="name">${esc(h.name)}${h.platoon ? " ◆" : ""}</td><td>${esc(h.team)}</td><td class="opt">${esc(h.bat)}</td><td class="opt">${esc(h.oppHand)}HP</td><td class="num">${h.vsStarter.toFixed(3)}</td><td class="num opt">${h.vsPen.toFixed(3)}</td><td class="num">${h.hr}</td><td class="num"><b>${Math.round(h.score)}</b></td></tr>`).join("")}</tbody></table></div>
@@ -1866,7 +2176,7 @@ function render(model) {
         </summary>
         ${m.hrPlays.length
           ? `<div class="hrlist">${m.hrPlays.map(p =>
-              `<div class="hritem">💣 <span>${esc(p.desc)}</span> <span class="note">(${esc(p.half || "")} ${p.inning || ""})</span></div>`).join("")}</div>`
+              `<div class="hritem">💣 <span>${esc(p.desc)}</span>${hrTypeChip(p)} <span class="note">(${esc(p.half || "")} ${p.inning || ""})</span></div>`).join("")}</div>`
           : `<div class="note" style="margin-top:6px">No home runs in this one.</div>`}
       </details>`;
     }).join("");
@@ -1879,10 +2189,11 @@ function render(model) {
     btn.disabled = true; btn.textContent = "Simulating…";
     setTimeout(() => {
       try {
-        state.simResults = runHRSim(state.model, state.hitters, state.date, state.xhr);
+        state.simResults = runHRSim(state.model, state.hitters, state.date, state.xhr, state.contact);
         renderSimResults(state.simResults, state.simTeam || "ALL");
         renderBestBets(state.simResults);
         renderParlay(state.simResults);
+        renderRecordTile();
         renderReportCard(buildReportCard(state.model, state.simResults));
       }
       finally { btn.disabled = false; btn.textContent = "⚾ Re-run HR simulation"; }
@@ -1933,6 +2244,7 @@ async function run() {
     state.hitters = data.hitters;
     state.xhr = data.xhrMap || {};
     state.parksLive = !!(data.liveParks && Object.keys(data.liveParks).length);
+    state.contact = data.contact;
     render(state.model);
     const n = data.games.length;
     const probables = data.games.reduce((c, g) =>
@@ -1943,7 +2255,7 @@ async function run() {
     const penN = Object.keys(data.pens || {}).length;
     const scN = Object.keys(state.xhr).length;
     $("#updated").textContent = n
-      ? `live · probables ${probables}/${n * 2} · lineups ${lineups}/${n} · weather ${wxN}/${n} · pens ${penN}/${n * 2} · statcast ${scN ? scN + " ✓" : "–"} · parks ${state.parksLive ? "savant ✓" : "built-in"} · updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · auto-refreshes every 2 min`
+      ? `live · probables ${probables}/${n * 2} · lineups ${lineups}/${n} · weather ${wxN}/${n} · pens ${penN}/${n * 2} · statcast ${scN ? scN + " ✓" : "–"} · parks ${state.parksLive ? "savant ✓" : "built-in"} · contact ${state.contact ? "✓" : "–"} · updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · auto-refreshes every 2 min`
       : "updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   } catch (e) {
     $("#app").innerHTML = `<div class="status"><div class="err">Couldn’t load live data.</div>
@@ -1981,6 +2293,17 @@ function applyTheme() {
 }
 $("#themebtn").onclick = () => { themeIdx = (themeIdx + 1) % 3; applyTheme(); };
 applyTheme(); // light by default
+
+// timezone preference (persisted)
+state.tz = storeGet("slatepal_tz") || "ET";
+function applyTz() { $("#tzbtn").textContent = state.tz === "ET" ? "\u{1F550} ET" : "\u{1F550} " + localTzAbbr(); }
+$("#tzbtn").onclick = () => {
+  state.tz = state.tz === "ET" ? "local" : "ET";
+  storeSet("slatepal_tz", state.tz);
+  applyTz();
+  if (state.model) render(state.model);
+};
+applyTz();
 
 runSafe();
 </script>
