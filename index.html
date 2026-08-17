@@ -52,6 +52,7 @@
   .datebar button { background: var(--surface-1); border: 1px solid var(--border); color: var(--text-primary);
     border-radius: 8px; padding: 5px 12px; font-size: 13px; cursor: pointer; }
   .datebar button:hover { border-color: var(--baseline); }
+  .datebar button:disabled { opacity: 0.45; cursor: default; }
   .datebar .cur { font-weight: 600; font-size: 14px; min-width: 150px; text-align: center; }
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 18px; }
   .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
@@ -238,7 +239,21 @@
     .matchup { font-size: 13.5px; }
     .gtime { font-size: 11px; white-space: normal; }
     th, td { font-size: 11.5px; padding-right: 6px; }
-    .opt, .oneinn { display: none; }   /* lower-priority columns hide on phones */
+    .opt, .oneinn, .rk { display: none; }   /* lower-priority columns hide on phones */
+    #simout .tier { display: none; }          /* tier word: color/percent already carry it */
+    /* horizontal-swipe tables keep the row's identity pinned on the left */
+    #simout .rowctl { position: sticky; left: 0; background: var(--surface-1); z-index: 2;
+      width: 48px; min-width: 48px; }
+    #simout td.name, #simout th.namh { position: sticky; left: 48px; background: var(--surface-1);
+      z-index: 2; max-width: 118px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      box-shadow: 6px 0 6px -6px rgba(0,0,0,0.25); }
+    #simout .whyrow td { position: static; }  /* breakdown rows span the table; don't pin */
+    th.gc, td.gc { font-size: 10px; padding: 3px 4px; min-width: 30px; }
+    .heat { font-size: 10.5px; }
+    .bbrow { flex-wrap: wrap; }
+    .bbact { text-align: left; width: 100%; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .bbact > div { margin-top: 0 !important; }
+    .sliprow { grid-template-columns: 1fr; }
     .howread { font-size: 12px; padding: 9px 11px; }
     .chips { gap: 5px; }
     .chip { font-size: 11px; padding: 2px 8px; }
@@ -258,6 +273,7 @@
     <button id="prev" aria-label="Previous day">‹ Prev</button>
     <span class="cur" id="curdate"></span>
     <button id="next" aria-label="Next day">Next ›</button>
+    <button id="todaybtn" title="Jump back to today’s slate">Today</button>
     <button id="refresh">Refresh</button>
     <button id="themebtn" title="Switch between light and dark mode">◐ Auto</button>
     <button id="tzbtn" title="Show game times in Eastern or your local time">🕐 ET</button>
@@ -274,6 +290,7 @@
       <div class="term">Run environment</div><div class="def">How run-friendly this stadium plays <i>today</i>: the park’s history plus temperature and wind.</div>
       <div class="term">HR environment</div><div class="def">Same idea, but for home runs. Reacts more to heat and wind — this is the number for HR bets.</div>
       <div class="term">park run / park HR</div><div class="def">The stadium’s baseline before today’s weather is added — pulled live from Baseball Savant when reachable (the status bar shows “parks savant ✓”), otherwise from built-in estimates. Park HR is split by batter handedness (LHB / RHB) where the park is asymmetric — Yankee Stadium’s short right porch is a 128 for lefty bats but only 108 for righties, Houston’s Crawford Boxes flip it the other way. The HR sim uses the factor for the side each hitter actually bats from against each pitcher (switch hitters flip).</div>
+      <div class="term">G1 / G2 of DH</div><div class="def">Doubleheaders: each game is its own card, its own sim rows, and its own bets — tagged G1 and G2 everywhere. A leg bet on G1 <b>only</b> cashes on a homer in G1 (exactly how books grade it — a G2 homer doesn’t save a G1 ticket), and the same hitter can be added as a separate leg in each game. A <b>🏆 better DH game</b> chip marks which of the two rates better for homers — its HR environment at its <i>own</i> first-pitch weather (day and night games can play very differently) plus how homer-prone each game’s starters are. It re-scores on every refresh, so check back once both lineups and starters are confirmed.</div>
       <div class="term">🌡 / wind / precip</div><div class="def">Forecast at first pitch. Wind <b style="color:var(--hot)">out</b> = blowing toward the fences, helps hitters. Wind <b style="color:var(--cold)">in</b> = toward home plate, helps pitchers. “Cross” ≈ neutral. “Roof closed” = weather ignored.</div>
 
       <div class="rule"></div><div class="head">Pitchers</div>
@@ -305,12 +322,16 @@
       <div class="term">🎯 Best bets</div><div class="def">The tool’s answer, not just its data: top 4 pre-game picks (one per game) with a plain decision rule — <b>bet at +X or longer</b>, which is fair price plus a 15% cushion; if your book pays less, pass. Three profiles: 🛡 Safe (highest chance), ⚖ Balanced (chance × situational edge), 🚀 Moonshot (long shots with the biggest situational lift).</div>
       <div class="term">🟩 Grid view</div><div class="def">The color-graded matchup board (toggle in the sim controls): every factor the model uses, one shaded cell each — Park (his side), Weather, Starter HR/9, Split edge, xHR luck, Form, Barrels. <b style="color:var(--good)">Green tint = boosts him</b>, <b style="color:var(--hot)">red = hurts him</b>, deeper = stronger. A row glowing red across the board is the “everything aligned” pick; the numbers stay printed in every cell so color is a scanning aid, never the data.</div>
       <div class="term">Heat column</div><div class="def">The at-a-glance version of the recent-signal layers, right in the sim table: 🔥 22% brl = barrels spiking (boosted), ❄ = weak contact or cold results (trimmed), · = no strong signal. Hover any entry for the numbers. This is the “who’s actually hot” read the pick services sell.</div>
+      <div class="term">Pitcher platoon splits</div><div class="def">The starter’s HR rate is measured against <i>this hitter’s side of the plate</i>, not just overall — a righty who’s a lefty-killer and a righty whom lefties crush now price differently for the same hitter. Shrunk toward his overall rate (platoon splits are noisy) and shown in the ▸ breakdown and the grid’s SP column when it matters.</div>
       <div class="term">Contact quality</div><div class="def">The PropFinder-style signal: each hitter’s barrel rate over the last 14 days of batted balls vs his own season norm (from live Statcast data, cached daily — “contact ✓” in the status bar). A bat that’s suddenly barreling everything gets boosted up to +10% <i>before</i> the homer totals catch up; mushy contact gets trimmed. Dampened by batted-ball count so 5 balls in play prove nothing.</div>
       <div class="term">Form</div><div class="def">Each hitter’s last 15 games nudge his rate up or down (shrunk toward his season rate, dampened by sample size, capped at ±12%, because two hot weeks are mostly noise with a little signal). Hot and cold bats are called out in the ▸ breakdown and in pick reasoning.</div>
       <div class="term">💵 Cash-out</div><div class="def">Open slips show their live fair cash-out value: potential payout × the current chance every unresolved leg still hits — hit legs count as done, live legs use rest-of-game odds, and it re-prices every refresh. Books offer roughly 75–85% of this number; if your book’s cash-out offer beats our ~80% estimate, taking it is reasonable — if it’s well below fair, you’re paying heavily for certainty. Pre-game it tracks line movement (lineup posts and weather shifting your ticket’s value before first pitch).</div>
       <div class="term">Singles vs parlay</div><div class="def">Every slip and the builder show what the <b>same legs at the same stake</b> would do as equal straight bets at fair prices. Three 20% picks as a parlay cash ~1 night in 100; as singles, a 1-of-3 night at plus-money is a <b>profit</b>. If your slips keep losing while the singles line keeps winning, the picks are fine — the format is the leak.</div>
       <div class="term">Pal vs You</div><div class="def">The lifetime scoreboard tile: leg hit rate and tickets won for Pal’s locked picks vs your saved slips, accumulated day by day (only saved slips count — browsing doesn’t). If Pal’s number stays higher for a few weeks, the data is telling you to ride his picks.</div>
       <div class="term">Ticket tracker</div><div class="def">Two tickets, both graded live: <b>🤖 Pal’s pick</b> — auto-built by conviction score (HR chance × situational lift over the hitter’s neutral baseline, discounted for unposted lineups and TBD starters; expand “Pal’s reasoning” for the per-leg why), locked for the day (survives reloads); when upcoming games run out Pal fills legs from in-progress games at rest-of-game odds, so he always has action until the slate ends — and <b>🧑 My ticket</b>, yours to build with the <b>+</b> on any sim row (✕ removes a leg). <b>💾 Save</b> files your ticket as its own card below the tracker and clears the builder for the next one. Legs turn <b>HIT ✓</b> the moment that hitter homers; tickets read WON or LOST. Adding a hitter who already homered today makes it an <b>“another HR”</b> leg — shown as “(2nd HR)” — which only cashes on a new homer, priced at his rest-of-game odds. Set legs to <b>1</b> for a straight HR bet. Calculators accept American (+12000) or decimal (12.5, DK Pick6-style) odds.</div>
+      <div class="term">✅ PLAY / ⚠ THIN / ✗ PASS</div><div class="def">The one-glance verdict that appears the moment you enter your book’s odds on any ticket: <b>PLAY</b> = the price beats the model’s fair value by 15%+ (real edge), <b>THIN</b> = above fair but inside the model’s error bars, <b>PASS</b> = the book is paying less than the bet is worth. Shown with the expected profit or loss per $1 (EV). This is the only definition of a “good bet” that makes money long-term: not picks that usually hit, but prices that beat probabilities.</div>
+      <div class="term">Round robin</div><div class="def">With 3+ legs in your builder, the payout box also shows the same stake spread across <b>every 2-leg combo</b> (4 legs = 6 combos). Go 2-of-4 and one combo still cashes — roughly a push-to-profit night instead of a dead slip; 3-of-4 cashes three. It trades the single big payout for actually getting paid on partial-hit nights, which are your most common good nights. Prices estimated at fair less a 15% book haircut.</div>
+      <div class="term">🧬 Correlated pair</div><div class="def">Best bets’ correlated play: the best bat from <b>each side of one game</b> — different teams (so it’s legal on pick-em entries that require them), but the same park and the same weather. Those shared conditions move both chances together: a hot, wind-out park lifts both at once, yet every book prices the legs as independent. Pairing correlated legs is the one combo structure where the true combined chance beats what the slip assumes — at any book. <b>＋ leg</b> grows the stack (up to 6): each click adds the next logical hitter — best remaining conviction score, with a preference for bats that share a park with legs already on the stack. <b>↺</b> returns to the core pair; <b>→ my ticket</b> copies the whole stack into your builder to price, save, and track like any slip.</div>
     </div>
   </details>
   <div id="app"><div class="status"><span class="spin"></span>Loading today’s slate…</div></div>
@@ -551,6 +572,15 @@ function pitcherHRperBF(stat) {
   if (stat.homeRuns != null && stat.battersFaced > 0) return stat.homeRuns / stat.battersFaced;
   const hr9 = parseFloat(stat.homeRunsPer9);
   return hr9 ? (hr9 / 9) / 4.3 : LG.HRPA;
+}
+
+// Pitcher's HR rate vs a specific BATTER side, shrunk toward his overall rate
+// (150-BF prior — platoon splits on pitchers are noisy). Falls back to overall.
+function pitcherHRperBFvsSide(starterStat, vsLB, vsRB, batterSide) {
+  const overall = pitcherHRperBF(starterStat);
+  const sp = batterSide === "L" ? vsLB : batterSide === "R" ? vsRB : null;
+  if (!sp || !sp.bf) return overall;
+  return ((sp.hr || 0) + overall * 150) / (sp.bf + 150);
 }
 
 // Per-PA HR probability: batter rate × pitcher ratio × park/weather multiplier
@@ -868,11 +898,22 @@ async function loadSlate(dateISO) {
   if (pids.length) {
     const pd = await getJSON(
       `https://statsapi.mlb.com/api/v1/people?personIds=${pids.join(",")}` +
-      `&hydrate=stats(group=[pitching],type=[season],season=${season})`);
+      `&hydrate=stats(group=[pitching],type=[season,statSplits],sitCodes=[vl,vr],season=${season})`);
     for (const p of pd.people || []) {
+      let seasonStat = null, vsLB = null, vsRB = null;
+      for (const st of p.stats || []) {
+        if (st.type?.displayName === "season") seasonStat = st.splits?.[0]?.stat || null;
+        else if (st.type?.displayName === "statSplits") {
+          for (const sp of st.splits || []) {
+            const o = { hr: sp.stat?.homeRuns || 0, bf: sp.stat?.battersFaced || sp.stat?.plateAppearances || 0 };
+            if (sp.split?.code === "vl") vsLB = o;   // vs left-handed BATTERS
+            if (sp.split?.code === "vr") vsRB = o;
+          }
+        }
+      }
       pitchers[p.id] = {
         name: p.fullName, hand: p.pitchHand?.code || "?",
-        stat: p.stats?.[0]?.splits?.[0]?.stat || null,
+        stat: seasonStat, vsLB, vsRB,
       };
     }
   }
@@ -1113,6 +1154,7 @@ function buildModel(data) {
         side, isHome: side === "home", projected: !posted.length, ids,
         team: g.teams[side].team.abbreviation || g.teams[side].team.name,
         starterHand: oppP?.hand, starterName: oppP?.name, starterStat: oppP?.stat || null,
+        starterVsLB: oppP?.vsLB || null, starterVsRB: oppP?.vsRB || null,
         penStat: oppPen?.stat || null, penMixL: oppPen?.mixL ?? LG_PEN_LHP_SHARE,
       });
     }
@@ -1193,6 +1235,14 @@ function pitcherHTML(label, p, v, pen) {
   </div>`;
 }
 
+// One label per GAME, not per matchup: doubleheaders get a G1/G2 tag so the
+// two games never collide — legs, grading, filters, and anomaly sets all key
+// off this (a leg bet on G1 must NOT cash on a G2 homer, same as the books).
+function gameLabelOf(g) {
+  const base = `${g.teams.away.team.abbreviation || "AWY"}@${g.teams.home.team.abbreviation || "HME"}`;
+  return g.doubleHeader && g.doubleHeader !== "N" ? `${base} G${g.gameNumber || 1}` : base;
+}
+
 /* ---------- HR simulation runner ---------- */
 
 function runHRSim(model, hitters, dateISO, xhrMap = {}, contact = null) {
@@ -1201,7 +1251,7 @@ function runHRSim(model, hitters, dateISO, xhrMap = {}, contact = null) {
   for (const m of model) {
     // per-side environment: handedness-specific park HR factor + today's weather
     const envSide = side => clamp((parkHRForSide(m.park, side) + (m.wadj?.hr || 0)) / 100, 0.6, 1.6);
-    const gameLabel = `${m.g.teams.away.team.abbreviation || "AWY"}@${m.g.teams.home.team.abbreviation || "HME"}`;
+    const gameLabel = gameLabelOf(m.g);
     // pre: full-game forecast · live: rest-of-game forecast · final: retro full-game
     // (final-mode results feed the report card, not the picks table)
     const mode = m.gstate;
@@ -1209,7 +1259,6 @@ function runHRSim(model, hitters, dateISO, xhrMap = {}, contact = null) {
     const remFrac = mode === "live" ? clamp((9 - inning + 1) / 9, 0.08, 1) : 1;
     const starterW = mode === "live" ? clamp((5 - inning) / 5, 0, 1) : null;
     for (const s of m.simSides) {
-      const spRate = pitcherHRperBF(s.starterStat);
       const penRate = pitcherHRperBF(s.penStat);
       s.ids.forEach((id, slot) => {
         const h = hitters[id];
@@ -1221,10 +1270,12 @@ function runHRSim(model, hitters, dateISO, xhrMap = {}, contact = null) {
         // recent contact quality (barrel rate last 14 days vs his season norm)
         const ct = contactFactor(id, contact);
         const qual = xf * ff * ct.cf;
+        const side = battingSideVs(h.bat, s.starterHand);
+        // the starter's HR rate against THIS hitter's side, not his overall
+        const spRate = pitcherHRperBFvsSide(s.starterStat, s.starterVsLB, s.starterVsRB, side);
         // vs starter: his split for the starter's hand, in the park factor for
         // the side he'll bat from (switch hitters flip to face the pitcher)
-        const pSP = hrProbPA(hitterHRRate(h, s.starterHand) * qual, spRate,
-          envSide(battingSideVs(h.bat, s.starterHand)));
+        const pSP = hrProbPA(hitterHRRate(h, s.starterHand) * qual, spRate, envSide(side));
         // vs pen: blend facing-LHP and facing-RHP scenarios by the pen's
         // innings mix — each with its own split AND its own park side
         const pPenVsL = hrProbPA(hitterHRRate(h, "L") * qual, penRate, envSide(battingSideVs(h.bat, "L")));
@@ -1238,13 +1289,12 @@ function runHRSim(model, hitters, dateISO, xhrMap = {}, contact = null) {
         } else {
           p = simulateHitterHR(pSP, pPen, slot, s.isHome, SIM_N, rng);
         }
-        const side = battingSideVs(h.bat, s.starterHand);
         const hrToday = (m.hrPlays || []).filter(hp => hp.batterId === id).length;
         // baseline: same hitter in a neutral park, average weather, average
         // pitcher — the reference his situational lift is measured against
         const basePA = hrProbPA((h.pa ? h.hr / h.pa : LG.HRPA) * qual, LG.HRPA, 1.0);
         const pBase = 1 - Math.pow(1 - basePA, mode === "live" ? expPAFull * remFrac : expPAFull);
-        results.push({ name: h.name, bat: h.bat, stance: stanceInfo(h), team: s.team, game: gameLabel, slot: slot + 1,
+        results.push({ name: h.name, bat: h.bat, stance: stanceInfo(h), team: s.team, game: gameLabel, gpk: m.g.gamePk, slot: slot + 1,
           projected: s.projected, p, pBase, envHR: m.envHR, spHand: s.starterHand || "?",
           seasonHR: h.hr, xhr: xhrMap[id]?.xhr ?? null, xf, ff, ct, recent: h.recent || null, pPA: pSP, mode, pid: id, hrToday,
           why: {
@@ -1252,6 +1302,7 @@ function runHRSim(model, hitters, dateISO, xhrMap = {}, contact = null) {
             wadjHR: m.wadj?.hr || 0, roofClosed: !!m.wadj?.roofClosed,
             windOut: m.wadj?.out || 0, temp: m.wx?.tempF ?? null,
             spName: s.starterName || null, spHR9: s.starterStat?.homeRunsPer9,
+            spSideHR9: (spRate * 38.3).toFixed(2), spSideBF: (side === "L" ? s.starterVsLB : s.starterVsRB)?.bf || 0,
             spK9: s.starterStat?.strikeoutsPer9Inn,
             rateVsSP: hitterHRRate(h, s.starterHand) * qual, overallRate: h.pa ? h.hr / h.pa : 0,
             splitRatio: hitterHRRate(h, s.starterHand) / ((h.pa ? h.hr / h.pa : 0) || LG.HRPA),
@@ -1319,7 +1370,7 @@ function whyHTML(r) {
   const spDesc = w.spName
     ? `${esc(w.spName)}${w.spHR9 ? ` (${w.spHR9} HR/9, ${w.spK9 || "?"} K/9)` : ""}`
     : "a TBD starter";
-  bits.push(`<b>Matchup:</b> bats ${r.bat === "S" ? `switch — hits ${side} here` : side} vs ${esc(r.spHand)}HP ${spDesc}; his HR rate against that hand is <b>${(w.rateVsSP * 100).toFixed(1)}%</b> per PA (${(w.overallRate * 100).toFixed(1)}% overall).`);
+  bits.push(`<b>Matchup:</b> bats ${r.bat === "S" ? `switch — hits ${side} here` : side} vs ${esc(r.spHand)}HP ${spDesc}; his HR rate against that hand is <b>${(w.rateVsSP * 100).toFixed(1)}%</b> per PA (${(w.overallRate * 100).toFixed(1)}% overall).${w.spSideHR9 && w.spHR9 && Math.abs(parseFloat(w.spSideHR9) - parseFloat(w.spHR9)) >= 0.25 ? ` The starter allows <b>${w.spSideHR9} HR/9 to ${side} bats</b> (${w.spHR9} overall${w.spSideBF ? `, ${w.spSideBF} BF` : ""}).` : ""}`);
   let pk = `<b>Park &amp; weather:</b> this park plays <b>${w.parkSide}</b> for ${side} bats (100 = neutral)`;
   if (w.roofClosed) pk += `; roof closed, weather neutral.`;
   else {
@@ -1380,8 +1431,8 @@ function gridCells(r) {
   cells.push(w.roofClosed
     ? shadeCell(0, "roof", "Roof closed — weather neutral")
     : shadeCell((w.wadjHR || 0) / 15, `${w.wadjHR >= 0 ? "+" : ""}${Math.round(w.wadjHR || 0)}`, "Weather HR-index points (temp + wind for this park)"));
-  const hr9 = parseFloat(w.spHR9);
-  cells.push(shadeCell(isNaN(hr9) ? 0 : (hr9 - 1.16) / 0.6, isNaN(hr9) ? "—" : hr9.toFixed(1), "Starter's HR/9 allowed (league ≈ 1.16)"));
+  const hr9 = parseFloat(w.spSideHR9 ?? w.spHR9);
+  cells.push(shadeCell(isNaN(hr9) ? 0 : (hr9 - 1.16) / 0.6, isNaN(hr9) ? "—" : hr9.toFixed(1), "Starter's HR/9 allowed vs THIS hitter's side (shrunk platoon split; league ≈ 1.16)"));
   cells.push(shadeCell(((w.splitRatio || 1) - 1) / 0.4, w.splitRatio ? (w.splitRatio).toFixed(2) + "×" : "—", "His HR rate vs this pitcher hand relative to his overall rate"));
   cells.push(shadeCell(((r.xf || 1) - 1) / 0.25, r.xhr != null ? `${r.xf >= 1 ? "+" : ""}${Math.round((r.xf - 1) * 100)}%` : "—", "Statcast xHR luck adjustment"));
   cells.push(shadeCell(((r.ff || 1) - 1) / 0.12, r.recent ? `${r.recent.hr}/15g` : "—", "HR count over his last 15 games (form adjustment)"));
@@ -1391,10 +1442,11 @@ function gridCells(r) {
 
 function renderSimResults(allResults, team = "ALL") {
   const out = $("#simout");
+  if (!out || !allResults) return;
   // remember which ▸ breakdowns are open so a background refresh doesn't collapse them
   const openWhy = new Set([...document.querySelectorAll("#simout .whyrow")].map(row => {
     const btn = row.previousElementSibling?.querySelector?.(".whytg");
-    return btn ? btn.dataset.pid + "|" + btn.dataset.mode : null;
+    return btn ? btn.dataset.pid + "|" + (btn.dataset.gpk || "") + "|" + btn.dataset.mode : null;
   }).filter(Boolean));
   if (state.pendingOpenWhy) { for (const k of state.pendingOpenWhy) openWhy.add(k); state.pendingOpenWhy = null; }
   const results = allResults.filter(r => r.mode !== "final"); // picks table: upcoming + live only
@@ -1446,7 +1498,7 @@ function renderSimResults(allResults, team = "ALL") {
         The <b>#${rk}</b> is his rank among all ${results.length} hitters on today’s slate.</div>`;
     })() : ""}
     <div class="tscroll"><table style="margin-top:8px"><thead><tr><th></th>
-      <th title="Rank across the whole slate">Rank</th><th>Hitter</th><th>Game</th>
+      <th class="rk" title="Rank across the whole slate">Rank</th><th class="namh">Hitter</th><th>Game</th>
       ${state.simView === "grid"
         ? `<th class="gc" title="Park HR factor for his side">Park</th><th class="gc" title="Weather HR points">Wx</th><th class="gc" title="Starter HR/9">SP</th><th class="gc" title="Split edge vs this hand">Split</th><th class="gc" title="xHR luck">xHR</th><th class="gc" title="HR last 15 games">Form</th><th class="gc" title="Barrel rate last 14 days">Brl</th>`
         : `<th class="num opt" title="Batting order position — higher up bats more often">Bats</th>
@@ -1454,11 +1506,12 @@ function renderSimResults(allResults, team = "ALL") {
       <th class="xhr opt" title="Actual homers · Statcast expected homers">HR · xHR</th>
       <th class="heat" title="Recent heat: barrel rate last 14 days vs his season norm (or HR count last 15 games). This is what’s driving hot/cold adjustments — 🔥 bats are boosted before their homer totals catch up.">Heat</th>`}
       <th class="num" title="Chance of at least one homer today">HR chance</th>
-      <th class="num" title="Break-even sportsbook price for that chance — not a real line">Fair price</th><th></th></tr></thead>
+      <th class="num" title="Break-even sportsbook price for that chance — not a real line">Fair price</th><th class="tier"></th></tr></thead>
     <tbody>${(() => {
-      const myPids = new Set((getMyTicket()?.picks || []).map(pk => pk.pid));
+      const myKeys = new Set((getMyTicket()?.picks || []).map(pk => pk.pid + "|" + (pk.gpk ?? "")));
       const palLock = storeGet(PARLAY_KEY);
-      const palPids = new Set(palLock && palLock.date === state.date ? palLock.picks.map(pk => pk.pid) : []);
+      const palKeys = new Set(palLock && palLock.date === state.date ? palLock.picks.map(pk => pk.pid + "|" + (pk.gpk ?? "")) : []);
+      const isPal = r => palKeys.has(r.pid + "|" + (r.gpk ?? "")) || palKeys.has(r.pid + "|");
       const canBet = state.date >= easternISODate(); // today or a future slate
       return shown.map(r => {
       const [word, cls] = simTier(r.p);
@@ -1468,14 +1521,14 @@ function renderSimResults(allResults, team = "ALL") {
       const stanceHTML = st.code === "S"
         ? ` <span class="stance" title="Switch hitter — bolded letter is his stronger side (by split OPS)">${st.dom ? "<b>" + st.dom + "</b>" : ""}S</span>`
         : st.code && st.code !== "?" ? ` <span class="stance" title="Bats ${st.code === "L" ? "left" : "right"}-handed">${st.code}</span>` : "";
-      return `<tr><td class="rowctl"><button class="xbtn whytg" data-pid="${r.pid}" data-mode="${esc(r.mode)}" title="Why? — expand the breakdown">▸</button>${canBet ? `<button class="xbtn addtg" data-pid="${r.pid}" data-mode="${esc(r.mode)}" title="${myPids.has(r.pid) ? "On my ticket — click to remove" : "Add to my ticket"}">${myPids.has(r.pid) ? "✓" : "+"}</button>` : ""}</td>
-        <td>#${results.indexOf(r) + 1}</td><td class="name">${esc(r.name)}${stanceHTML}${palPids.has(r.pid) && r.mode !== "final" ? ' <span class="palmark" title="Pal’s pick — this hitter is a leg on Pal’s suggested ticket">🤖</span>' : ""}${r.projected ? " *" : ""}${r.mode === "live" ? ' <span class="livedot" title="Game in progress — chance covers the rest of the game only"></span>' : ""}</td>
+      return `<tr><td class="rowctl"><button class="xbtn whytg" data-pid="${r.pid}" data-gpk="${r.gpk ?? ""}" data-mode="${esc(r.mode)}" title="Why? — expand the breakdown">▸</button>${canBet ? `<button class="xbtn addtg" data-pid="${r.pid}" data-gpk="${r.gpk ?? ""}" data-mode="${esc(r.mode)}" title="${myKeys.has(r.pid + "|" + (r.gpk ?? "")) ? "On my ticket — click to remove" : "Add to my ticket"}">${myKeys.has(r.pid + "|" + (r.gpk ?? "")) ? "✓" : "+"}</button>` : ""}</td>
+        <td class="rk">#${results.indexOf(r) + 1}</td><td class="name">${esc(r.name)}${stanceHTML}${isPal(r) && r.mode !== "final" ? ' <span class="palmark" title="Pal’s pick — this hitter is a leg on Pal’s suggested ticket">🤖</span>' : ""}${r.projected ? " *" : ""}${r.mode === "live" ? ' <span class="livedot" title="Game in progress — chance covers the rest of the game only"></span>' : ""}</td>
         <td>${esc(r.game)}</td>${state.simView === "grid" ? gridCells(r) : `<td class="num opt">${ordinal(r.slot)}</td><td class="opt">${r.spHand === "L" ? "Lefty" : r.spHand === "R" ? "Righty" : "TBD"}</td>
         <td class="xhr opt"><span class="xa">${r.seasonHR}</span><span class="xsep">·</span><span class="xb">${r.xhr != null ? r.xhr.toFixed(0) : "—"}</span><span class="xar">${luck}</span></td>
         <td class="heat">${heatCell(r)}</td>`}
         <td class="num"><b>${(r.p * 100).toFixed(1)}%</b> <span class="note oneinn">(1 in ${Math.max(2, Math.round(1 / r.p))} games)</span></td>
         <td class="num">${fairOdds(r.p)}</td>
-        <td><span class="badge ${cls}">${word}</span></td></tr>`;
+        <td class="tier"><span class="badge ${cls}">${word}</span></td></tr>`;
     }).join(""); })()}</tbody></table></div>
     <p class="note" style="margin-top:8px">${SIM_N.toLocaleString()} simulated games per hitter.
     ${results.some(r => r.mode === "live") ? 'Rows with a green dot are in-progress games — the chance covers the <b>rest</b> of that game (fewer at-bats left, bullpen arms likelier).' : ""}
@@ -1497,7 +1550,7 @@ function renderSimResults(allResults, team = "ALL") {
     const tr = btn.closest("tr");
     const next = tr.nextElementSibling;
     if (next?.classList.contains("whyrow")) { next.remove(); btn.textContent = "▸"; return; }
-    const r = results.find(x => String(x.pid) === btn.dataset.pid && x.mode === btn.dataset.mode);
+    const r = results.find(x => String(x.pid) === btn.dataset.pid && String(x.gpk ?? "") === (btn.dataset.gpk ?? "") && x.mode === btn.dataset.mode);
     const row = document.createElement("tr");
     row.className = "whyrow";
     row.innerHTML = `<td colspan="14">${whyHTML(r)}</td>`;
@@ -1506,13 +1559,13 @@ function renderSimResults(allResults, team = "ALL") {
   };
   document.querySelectorAll("#simout .whytg").forEach(btn => {
     btn.onclick = () => expandWhy(btn);
-    if (openWhy.has(btn.dataset.pid + "|" + btn.dataset.mode)) expandWhy(btn);
+    if (openWhy.has(btn.dataset.pid + "|" + (btn.dataset.gpk || "") + "|" + btn.dataset.mode)) expandWhy(btn);
   });
   // + adds a hitter to (or ✓ removes him from) my ticket
   document.querySelectorAll("#simout .addtg").forEach(btn => btn.onclick = () => {
-    const r = results.find(x => String(x.pid) === btn.dataset.pid && x.mode === btn.dataset.mode);
+    const r = results.find(x => String(x.pid) === btn.dataset.pid && String(x.gpk ?? "") === btn.dataset.gpk && x.mode === btn.dataset.mode);
     if (!r) return;
-    if (btn.textContent === "✓") removeFromMyTicket(r.pid);
+    if (btn.textContent === "✓") removeFromMyTicket(r.pid, r.gpk ?? null);
     else addToMyTicket(r);
     renderSimResults(allResults, team);
     renderParlay(state.simResults);
@@ -1568,7 +1621,7 @@ function buildTicket(results, legs) {
   const picks = [], seen = new Set();
   for (const { r, score } of ranked) {
     if (seen.has(r.game)) continue;
-    picks.push({ pid: r.pid, name: r.name, game: r.game, p: r.p, mode: r.mode,
+    picks.push({ pid: r.pid, name: r.name, game: r.game, gpk: r.gpk, p: r.p, mode: r.mode,
       baseHR: r.hrToday || 0, reason: legReason(r), score: Math.round(score * 1000) / 1000 });
     seen.add(r.game);
     if (picks.length === legs) break;
@@ -1578,11 +1631,13 @@ function buildTicket(results, legs) {
 
 // Grade each locked leg against the live game data (hrPlays carry batter ids)
 function gradeParlay(picks, model) {
-  const byLabel = {};
-  for (const m of model)
-    byLabel[`${m.g.teams.away.team.abbreviation || "AWY"}@${m.g.teams.home.team.abbreviation || "HME"}`] = m;
+  const byLabel = {}, byGpk = {};
+  for (const m of model) {
+    byLabel[gameLabelOf(m.g)] = m;
+    if (m.g.gamePk != null) byGpk[m.g.gamePk] = m;
+  }
   const legs = picks.map(pk => {
-    const m = byLabel[pk.game];
+    const m = (pk.gpk != null ? byGpk[pk.gpk] : null) || byLabel[pk.game];
     let status = "pending";
     let hrType = "";
     if (m) {
@@ -1627,6 +1682,7 @@ function payoutInfo(p, stake, bookRaw) {
     out.bookProfit = stake * (book.dec - 1);
     out.valuePct = (book.dec - 1) / (fairDec - 1);
     out.bookKind = book.kind;
+    out.bookDec = book.dec;
   }
   return out;
 }
@@ -1670,10 +1726,55 @@ function cashoutFair(gradedLegs, winTotal, curP) {
   for (const l of gradedLegs) {
     if (l.status === "hit") continue;
     if (l.status === "miss") return { fair: 0, pRem: 0 };
-    const cur = curP?.[l.pid];
+    const cur = (l.gpk != null ? curP?.[l.pid + "|" + l.gpk] : null) || curP?.[l.pid];
     pRem *= (cur && cur.mode !== "final" ? cur.p : l.p);
   }
   return { fair: winTotal * pRem, pRem };
+}
+
+// PLAY / THIN / PASS: does the book's price beat the model's probability?
+// EV per $1 staked = p × bookDec − 1. PLAY needs fair +15% (same cushion as
+// the best-bets "bet at" rule); between fair and +15% is THIN; below fair, PASS.
+function edgeVerdict(p, bookDec) {
+  if (!bookDec || !p) return null;
+  const ev = p * bookDec - 1;
+  const fairDec = 1 / p;
+  const verdict = bookDec >= fairDec * 1.15 ? "play" : bookDec >= fairDec ? "thin" : "pass";
+  return { ev, verdict };
+}
+function edgeChipHTML(p, bookDec, withNote) {
+  const v = edgeVerdict(p, bookDec);
+  if (!v) return "";
+  const evPct = (v.ev >= 0 ? "+" : "−") + Math.abs(v.ev * 100).toFixed(0) + "% EV";
+  const chip = v.verdict === "play" ? `<span class="badge lg-hit">✅ PLAY · ${evPct}</span>`
+    : v.verdict === "thin" ? `<span class="badge b-md">⚠ THIN · ${evPct}</span>`
+    : `<span class="badge lg-miss">✗ PASS · ${evPct}</span>`;
+  if (!withNote) return chip;
+  const note = v.verdict === "play" ? "the price beats fair by 15%+ — real model edge even after error bars"
+    : v.verdict === "thin" ? "above fair but inside the model’s error bars — no reliable edge either way"
+    : `the book pays less than this is worth — every $1 loses ~${Math.abs(v.ev * 100).toFixed(0)}¢ on average at the model’s numbers`;
+  return `${chip} <span class="note">${note}</span>`;
+}
+
+// Round robin "by 2s": every 2-leg pair bet as its own mini-parlay, equal
+// stakes. Estimated book price per leg = fair with the profit cut by a
+// haircut (0.85 ≈ typical book margin). The ladder shows the net at each
+// hit count using the average pair payout — partial-hit nights stop being
+// automatic zeros, which is the whole point vs one long parlay.
+function roundRobinInfo(legs, totalStake, haircut) {
+  const n = legs.length;
+  if (n < 3) return null;
+  const pairs = [];
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) pairs.push([i, j]);
+  const per = totalStake / pairs.length;
+  const dec = legs.map(l => 1 + (1 / l.p - 1) * haircut);
+  const avgPairDec = pairs.reduce((a, [i, j]) => a + dec[i] * dec[j], 0) / pairs.length;
+  const ladder = [];
+  for (let k = 0; k <= n; k++) {
+    const cashing = k * (k - 1) / 2; // C(k,2) pairs cash when k legs hit
+    ladder.push({ k, cashing, net: cashing * per * avgPairDec - totalStake });
+  }
+  return { pairs: pairs.length, per, avgPairDec, ladder };
 }
 
 function getMyTicket() {
@@ -1687,16 +1788,16 @@ function setMyTicket(entry) {
 }
 function addToMyTicket(r) {
   const t = getMyTicket() || { picks: [], stake: 10, book: "" };
-  if (t.picks.some(pk => pk.pid === r.pid)) return;
+  if (t.picks.some(pk => pk.pid === r.pid && (pk.gpk ?? null) === (r.gpk ?? null))) return;
   // baseHR: homers he already has today — the leg only cashes on a NEW one,
   // so adding a guy who already went deep becomes an "another HR" bet.
-  t.picks.push({ pid: r.pid, name: r.name, game: r.game, p: r.p, baseHR: r.hrToday || 0 });
+  t.picks.push({ pid: r.pid, name: r.name, game: r.game, gpk: r.gpk, p: r.p, baseHR: r.hrToday || 0 });
   setMyTicket({ picks: t.picks, stake: t.stake ?? 10, book: t.book ?? "" });
 }
-function removeFromMyTicket(pid) {
+function removeFromMyTicket(pid, gpk) {
   const t = getMyTicket();
   if (!t) return;
-  setMyTicket({ picks: t.picks.filter(pk => pk.pid !== pid), stake: t.stake ?? 10, book: t.book ?? "" });
+  setMyTicket({ picks: t.picks.filter(pk => !(pk.pid === pid && (gpk === undefined || (pk.gpk ?? null) === gpk))), stake: t.stake ?? 10, book: t.book ?? "" });
 }
 function getSaved() {
   const s = ticketStoreFor(SAVED_KEY)[state.date];
@@ -1800,7 +1901,7 @@ function ticketTableHTML(legList, removable) {
   return `<div class="tscroll"><table><thead><tr><th>Leg</th><th>Game</th><th class="num">Model chance</th><th>Status</th>${removable ? "<th></th>" : ""}</tr></thead>
     <tbody>${legList.map(l => `<tr><td class="name">${esc(l.name)}${l.baseHR ? ` <span class="note" title="He already homered today — this leg needs HR #${l.baseHR + 1}">(${ordinal(l.baseHR + 1)} HR)</span>` : ""}${l.mode === "live" ? ' <span class="note">(rest of game)</span>' : ""}</td><td>${esc(l.game)}</td>
       <td class="num">${(l.p * 100).toFixed(1)}%</td><td>${legStatusBadge(l)}</td>
-      ${removable ? `<td><button class="xbtn rmleg" data-pid="${l.pid}" title="Remove from my ticket">✕</button></td>` : ""}</tr>`).join("")}</tbody></table></div>`;
+      ${removable ? `<td><button class="xbtn rmleg" data-pid="${l.pid}" data-gpk="${l.gpk ?? ""}" title="Remove from my ticket">✕</button></td>` : ""}</tr>`).join("")}</tbody></table></div>`;
 }
 function payoutBlockHTML(prefix, stakeVal, bookVal) {
   return `<div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:8px">
@@ -1820,11 +1921,11 @@ function wireTicketPayout(prefix, prob, persist, compact) {
     let h;
     if (compact) {
       h = pay.bookTotal != null
-        ? `To win <b>$${pay.bookTotal.toFixed(2)}</b> (profit $${pay.bookProfit.toFixed(2)}) · <b>${Math.round(pay.valuePct * 100)}%</b> of fair <span class="note">(fair pays $${pay.fairTotal.toFixed(2)})</span>`
+        ? `To win <b>$${pay.bookTotal.toFixed(2)}</b> (profit $${pay.bookProfit.toFixed(2)}) · <b>${Math.round(pay.valuePct * 100)}%</b> of fair <span class="note">(fair pays $${pay.fairTotal.toFixed(2)})</span><br>${edgeChipHTML(prob, pay.bookDec)}`
         : `To win at fair ${fairOdds(prob)}: <b>$${pay.fairTotal.toFixed(2)}</b> (profit $${pay.fairProfit.toFixed(2)})`;
     } else {
       h = `At the model’s fair price (${fairOdds(prob)}): <b>$${stake.toFixed(0)}</b> returns <b>$${pay.fairTotal.toFixed(2)}</b> — profit <b>$${pay.fairProfit.toFixed(2)}</b>.`;
-      if (pay.bookTotal != null) h += `<br>At your book’s ${esc(book)}${pay.bookKind === "decimal" ? " (decimal odds)" : ""}: returns <b>$${pay.bookTotal.toFixed(2)}</b> — profit <b>$${pay.bookProfit.toFixed(2)}</b>, <b>${Math.round(pay.valuePct * 100)}%</b> of fair value${pay.valuePct < 1 ? " (the gap is the book’s margin)" : " — better than fair, the model sees value"}.`;
+      if (pay.bookTotal != null) h += `<br>At your book’s ${esc(book)}${pay.bookKind === "decimal" ? " (decimal odds)" : ""}: returns <b>$${pay.bookTotal.toFixed(2)}</b> — profit <b>$${pay.bookProfit.toFixed(2)}</b>, <b>${Math.round(pay.valuePct * 100)}%</b> of fair value${pay.valuePct < 1 ? " (the gap is the book’s margin)" : " — better than fair, the model sees value"}.<br>${edgeChipHTML(prob, pay.bookDec, true)}`;
     }
     out.innerHTML = h;
   };
@@ -1881,6 +1982,8 @@ function renderParlay(results) {
   for (const r of results) {
     const ex = curP[r.pid];
     if (!ex || (ex.mode === "final" && r.mode !== "final")) curP[r.pid] = r;
+    if (r.gpk != null) { const k = r.pid + "|" + r.gpk, e2 = curP[k];
+      if (!e2 || (e2.mode === "final" && r.mode !== "final")) curP[k] = r; }
   }
   if (sum) sum.innerHTML = [palOk ? `Pal ${palBadge}` : "", myPicks.length ? `building ${myBadge}` : "",
     saved.tickets.length ? `${saved.tickets.length} slip${saved.tickets.length > 1 ? "s" : ""}` : ""].filter(Boolean).join(" · ") || "—";
@@ -1920,7 +2023,7 @@ function renderParlay(results) {
             const co = cashoutFair(g.legs, winTotal, curP);
             const anyAction = g.legs.some(l => l.status !== "pending");
             const coLine = `<br><span class="note">\u{1F4B5} Fair cash-out now: <b>$${co.fair.toFixed(2)}</b> (${(co.pRem * 100).toFixed(1)}% to finish)${anyAction ? ` · a book would offer ~80%: ≈$${(co.fair * 0.8).toFixed(2)}` : " · pre-game, tracks line movement"}</span>`;
-            return `Wagered <b>$${stake.toFixed(0)}</b> at ${priceDesc}<br>To win <b>$${winTotal.toFixed(2)}</b> <span class="note">(profit $${winProfit.toFixed(2)}${usingBook ? ` · ${Math.round(pay.valuePct * 100)}% of fair` : ""})</span>${coLine}${singlesLine}`;
+            return `Wagered <b>$${stake.toFixed(0)}</b> at ${priceDesc}<br>To win <b>$${winTotal.toFixed(2)}</b> <span class="note">(profit $${winProfit.toFixed(2)}${usingBook ? ` · ${Math.round(pay.valuePct * 100)}% of fair` : ""})</span>${usingBook ? " " + edgeChipHTML(sp, pay.bookDec) : ""}${coLine}${singlesLine}`;
           })();
     return betSlipHTML({
       title: `\u{1F39F} TICKET #${i + 1}`, badge: ticketBadgeOf(g, tk.picks.length),
@@ -1959,6 +2062,10 @@ function renderParlay(results) {
       const sp = singlesPL(myGrade.legs, stake);
       const out = $("#mypayout");
       if (sp && out) out.innerHTML += `<br><b>Or bet it as ${sp.n} singles</b> ($${sp.per.toFixed(2)} each at fair prices): ${sp.ladder.map(l => `${l.k} hit${l.k > 1 ? "s" : ""} → <b style="color:${l.net >= 0 ? "var(--good)" : "var(--hot)"}">${l.net >= 0 ? "+" : "−"}$${Math.abs(l.net).toFixed(2)}</b>`).join(" · ")} <span class="note">— singles profit on a ${Math.ceil(sp.n / 2)}-of-${sp.n} night; the parlay needs all ${sp.n}.</span>`;
+      if (sp && sp.n >= 3 && out) {
+        const rr = roundRobinInfo(myGrade.legs, stake, 0.85);
+        if (rr) out.innerHTML += `<br><b>Or as a round robin</b> (all ${rr.pairs} two-leg combos, $${rr.per.toFixed(2)} each at est. book prices): ${rr.ladder.filter(l => l.k >= 2).map(l => `${l.k}/${sp.n} hit → <b style="color:${l.net >= 0 ? "var(--good)" : "var(--hot)"}">${l.net >= 0 ? "+" : "−"}$${Math.abs(l.net).toFixed(2)}</b>`).join(" · ")} <span class="note">— 0–1 hits → −$${stake.toFixed(2)}. This is the parlay format that pays on a ${Math.min(2, sp.n)}-of-${sp.n} night instead of busting; leg prices estimated at fair less a 15% book haircut.</span>`;
+      }
     };
     const sEl = $("#mystake"), bEl = $("#mybook");
     if (sEl) { const prev = sEl.oninput; sEl.oninput = () => { prev(); addLadder(); }; }
@@ -1966,7 +2073,7 @@ function renderParlay(results) {
     addLadder();
   }
   document.querySelectorAll("#parlaybody .rmleg").forEach(btn => btn.onclick = () => {
-    removeFromMyTicket(parseInt(btn.dataset.pid, 10));
+    removeFromMyTicket(parseInt(btn.dataset.pid, 10), btn.dataset.gpk ? parseInt(btn.dataset.gpk, 10) : null);
     renderParlay(results);
     renderSimResults(state.simResults, state.simTeam || "ALL");
   });
@@ -2018,7 +2125,7 @@ function shortReason(r) {
 // Three pick profiles, one hitter per game, top 4
 function bestBetPicks(results, mode) {
   const anomalyGames = new Set((state.model || []).filter(m => m.anomaly === "postponed" || m.anomaly === "suspended")
-    .map(m => `${m.g.teams.away.team.abbreviation || "AWY"}@${m.g.teams.home.team.abbreviation || "HME"}`));
+    .map(m => gameLabelOf(m.g)));
   const pool = results.filter(r => r.mode === "pre" && !anomalyGames.has(r.game));
   let ranked;
   if (mode === "safe") {
@@ -2036,6 +2143,63 @@ function bestBetPicks(results, mode) {
     if (picks.length === 4) break;
   }
   return picks;
+}
+
+// Correlated pair: the best bat from EACH side of one game — different teams
+// (so it's legal on pick-em slips that require it), but the same park and the
+// same weather. Those shared conditions move both chances together: when the
+// ball is flying, both rise at once, yet every book prices the legs as
+// independent. Scored by combined chance × shared environment, book-agnostic.
+function stackPick(results) {
+  const anomalyGames = new Set((state.model || []).filter(m => m.anomaly === "postponed" || m.anomaly === "suspended")
+    .map(m => gameLabelOf(m.g)));
+  const all = results.filter(r => r.mode === "pre" && !anomalyGames.has(r.game));
+  let pool = all.filter(r => !r.projected);
+  if (!pool.length) pool = all; // pre-lineup mornings: use projected lineups
+  const byGame = {};
+  for (const r of pool) {
+    const g = byGame[r.game] ??= {};
+    if (!g[r.team] || r.p > g[r.team].p) g[r.team] = r; // top bat per team
+  }
+  let best = null;
+  for (const teams of Object.values(byGame)) {
+    const tops = Object.values(teams).sort((a, b) => b.p - a.p);
+    if (tops.length < 2) continue; // need a bat from BOTH teams
+    const [a, b] = tops;
+    const wA = a.why || {}, wB = b.why || {};
+    // shared-environment multiplier: what BOTH legs feel — park (their sides) + weather
+    const env = (((wA.parkSide || 100) + (wB.parkSide || 100)) / 200) * (1 + (wA.wadjHR || 0) / 100);
+    const score = a.p * b.p * env;
+    if (!best || score > best.score) best = { hitters: [a, b], env, score, naive: a.p * b.p };
+  }
+  return best;
+}
+
+// Grow the stack past the core pair: each added leg is the next-best hitter
+// by conviction score (chance × situational lift), with a mild bonus for
+// sharing a game — and therefore a park and a forecast — with legs already
+// on the stack. Greedy: the bonus set grows as legs are added.
+function stackExtend(results, current, extra) {
+  if (extra <= 0) return [];
+  const anomalyGames = new Set((state.model || []).filter(m => m.anomaly === "postponed" || m.anomaly === "suspended")
+    .map(m => gameLabelOf(m.g)));
+  const all = results.filter(r => r.mode === "pre" && !anomalyGames.has(r.game));
+  let pool = all.filter(r => !r.projected);
+  if (!pool.length) pool = all;
+  const legs = [...current], out = [];
+  for (let i = 0; i < extra; i++) {
+    const games = new Set(legs.map(l => l.game));
+    const taken = new Set(legs.map(l => l.pid));
+    let bestC = null, bestS = -1;
+    for (const r of pool) {
+      if (taken.has(r.pid)) continue;
+      const s = ticketScore(r) * (games.has(r.game) ? 1.1 : 1);
+      if (s > bestS) { bestC = r; bestS = s; }
+    }
+    if (!bestC) break;
+    legs.push(bestC); out.push(bestC);
+  }
+  return out;
 }
 
 function renderBestBets(results) {
@@ -2061,9 +2225,51 @@ function renderBestBets(results) {
         <div class="bbact"><b>bet at ${betAtThreshold(r.p)}+</b><div class="note">pass below that</div></div>
       </div>`).join("")
       : `<p class="note" style="margin-top:8px">No pre-game picks left — the slate is underway. Fresh picks tomorrow morning.</p>`}
+      ${(() => {
+        const st = stackPick(results);
+        if (!st) { state.stackPids = []; return ""; }
+        const want = clamp(state.stackLegs || 2, 2, 6);
+        const extras = stackExtend(results, st.hitters, want - 2);
+        const legs = [...st.hitters, ...extras];
+        state.stackPids = legs.map(l => l.pid + "|" + (l.gpk ?? ""));
+        const naive = legs.reduce((acc, r) => acc * r.p, 1);
+        const [a, b] = st.hitters;
+        const wA = a.why || {}, wB = b.why || {};
+        const bits = [`same park (plays ${Math.round(((wA.parkSide || 100) + (wB.parkSide || 100)) / 2)} for their sides)`];
+        if ((wA.wadjHR || 0) >= 3) bits.push(`same weather adding ${Math.round(wA.wadjHR)} pts`);
+        const hr9s = [parseFloat(wA.spHR9), parseFloat(wB.spHR9)].filter(x => x >= 1.3);
+        if (hr9s.length === 2) bits.push(`and both starters are homer-prone (${wA.spHR9} & ${wB.spHR9} HR/9)`);
+        else if (hr9s.length === 1) bits.push(`one starter is homer-prone (${hr9s[0].toFixed(2)} HR/9)`);
+        const proj = legs.some(l => l.projected);
+        const extraLines = extras.map(r => `<div class="note" style="margin-top:2px">＋ <b>${esc(r.name)}</b> (${esc(r.team)} · ${esc(r.game)}, ${(r.p * 100).toFixed(1)}%) — ${legs.some(l => l.pid !== r.pid && l.game === r.game) ? "shares the stack’s park and weather" : "best remaining conviction on the slate"}</div>`).join("");
+        return `<div class="rule" style="margin:10px 0"></div>
+        <div class="bbrow"><span class="bbmedal">\u{1F9EC}</span>
+          <div class="bbmain"><b>Correlated ${legs.length === 2 ? "pair" : "stack"}: ${legs.map(l => esc(l.name.split(" ").pop())).join(" + ")}</b> <span class="note">core pair ${esc(a.team)} vs ${esc(b.team)} · ${esc(a.game)}${proj ? " · ⚠ lineup unposted" : ""}</span>
+            <div class="bbwhy">${(naive * 100).toFixed(1)}% combined <i>if independent</i> — the core pair isn’t: ${bits.join(", ")}. Opposite teams, one game: when that park is flying, both rise together, yet every book prices the legs separately — so the true combined chance runs above what any slip pays for. Different teams keeps it legal on pick-em entries too.${extraLines}</div></div>
+          <div class="bbact"><b>${legs.length} legs</b>
+            <div style="display:flex;gap:4px;margin-top:4px;justify-content:flex-end">
+              <button id="stackadd" class="minibtn"${legs.length >= 6 ? " disabled" : ""} title="Add the next logical leg — best remaining conviction, favoring bats that share the stack’s park">＋ leg</button>
+              ${legs.length > 2 ? '<button id="stackreset" class="minibtn" title="Back to the core pair">↺</button>' : ""}
+            </div>
+            <div style="margin-top:4px"><button id="stackto" class="minibtn" title="Copy every stack leg into My ticket builder">→ my ticket</button></div>
+          </div>
+        </div>`;
+      })()}
       <p class="note" style="margin-top:8px">“Bet at +X” is the model’s fair price plus a 15% cushion — open your book, check the price, and only bet if it pays that or longer. One pick per game. Recreational only.</p>
     </div>`;
   el.querySelectorAll(".bbtab").forEach(b => b.onclick = () => { state.betMode = b.dataset.m; renderBestBets(results); });
+  const sa = el.querySelector("#stackadd");
+  if (sa) sa.onclick = () => { state.stackLegs = clamp((state.stackLegs || 2) + 1, 2, 6); renderBestBets(results); };
+  const sr = el.querySelector("#stackreset");
+  if (sr) sr.onclick = () => { state.stackLegs = 2; renderBestBets(results); };
+  const stb = el.querySelector("#stackto");
+  if (stb) stb.onclick = () => {
+    const byKey = {};
+    for (const r of results) if (r.mode === "pre") byKey[r.pid + "|" + (r.gpk ?? "")] ??= r;
+    for (const k of state.stackPids || []) if (byKey[k]) addToMyTicket(byKey[k]);
+    renderParlay(results);
+    if (state.simResults) renderSimResults(state.simResults, state.simTeam || "ALL");
+  };
 }
 
 function renderReportCard(rc) {
@@ -2094,6 +2300,23 @@ function render(model) {
   if (!model.length) {
     app.innerHTML = `<div class="status">No MLB games on this date.</div>`;
     return;
+  }
+  // Doubleheader head-to-head: score each game of a DH pair for homer
+  // friendliness — its HR environment (park + THAT game's first-pitch
+  // weather) plus how homer-prone both starters are (TBD = league average).
+  // The better game gets a 🏆 chip; the other points at it.
+  const dhPairs = {};
+  for (const m of model) {
+    const g = m.g;
+    if (g.doubleHeader && g.doubleHeader !== "N")
+      (dhPairs[`${g.teams.away.team.abbreviation || "AWY"}@${g.teams.home.team.abbreviation || "HME"}`] ??= []).push(m);
+  }
+  for (const grp of Object.values(dhPairs)) {
+    if (grp.length < 2) continue;
+    const s9 = p => parseFloat(p?.stat?.homeRunsPer9) || LG.HR9;
+    grp.forEach(m => m.dhScore = Math.round(m.envHR + ((s9(m.pa) + s9(m.ph)) / 2 - LG.HR9) / LG.HR9 * 25));
+    const top = Math.max(...grp.map(m => m.dhScore));
+    grp.forEach(m => { m.dhBest = m.dhScore === top; m.dhOther = grp.find(x => x !== m)?.dhScore; });
   }
   // remember which cards the user has open so auto-refresh doesn't collapse them
   const prevOpen = state.rendered
@@ -2139,7 +2362,7 @@ function render(model) {
   // HR simulator first — runs automatically for games that haven't started
   html += `<div class="section-h" style="margin-top:4px">Home run simulator</div>
   <div class="card">
-    <p class="note">Plays out every hitter’s game ${SIM_N.toLocaleString()} times: his HR rate vs each pitcher hand — adjusted by Statcast expected homers (xHR), recent form (last 15 games), and last-2-weeks contact quality (barrel rate vs his own norm) — the starter’s and bullpen’s HR-allowed rates, his lineup slot, and today’s park + weather. Upcoming games get full-game odds (${upcoming.length} now); live games get rest-of-game odds (${model.filter(x => x.gstate === "live").length} now); finished games are graded in the report card below.</p>
+    <p class="note">Plays out every hitter’s game ${SIM_N.toLocaleString()} times: his HR rate vs each pitcher hand — adjusted by Statcast expected homers (xHR), recent form (last 15 games), and last-2-weeks contact quality (barrel rate vs his own norm) — the starter’s HR-allowed rate <i>vs his side of the plate</i> and the bullpen’s rates, his lineup slot, and today’s park + weather. Upcoming games get full-game odds (${upcoming.length} now); live games get rest-of-game odds (${model.filter(x => x.gstate === "live").length} now); finished games are graded in the report card below.</p>
     <button id="simbtn" style="margin-top:8px">⚾ Re-run HR simulation</button>
     <div id="simout"></div>
   </div>`;
@@ -2168,7 +2391,7 @@ function render(model) {
             <span class="oddcell"><b>${isFav ? "-1.5" : "+1.5"}</b><small>${fairOdds(isFav ? L.pFavCover : 1 - L.pFavCover)}</small></span>
           </div>`;
         return `<div class="mlgame">
-          <div class="mlhead">${esc(aAb)} @ ${esc(hAb)} <span class="note">· ${gt} · proj ${L.expA.toFixed(1)}–${L.expH.toFixed(1)}</span></div>
+          <div class="mlhead">${esc(aAb)} @ ${esc(hAb)}${m.g.doubleHeader && m.g.doubleHeader !== "N" ? ` <span class="note">G${m.g.gameNumber || 1}</span>` : ""} <span class="note">· ${gt} · proj ${L.expA.toFixed(1)}–${L.expH.toFixed(1)}</span></div>
           ${row(aAb, 1 - L.pHome, !L.favHome, "o")}
           ${row(hAb, L.pHome, L.favHome, "u")}
         </div>`;
@@ -2199,7 +2422,7 @@ function render(model) {
       <summary>
         <div class="row1">
           <div>
-            <div class="matchup">#${i+1} · ${esc(away.name)} <span class="at">@</span> ${esc(home.name)}</div>
+            <div class="matchup">#${i+1} · ${esc(away.name)} <span class="at">@</span> ${esc(home.name)}${g.doubleHeader && g.doubleHeader !== "N" ? ` <span class="badge b-md" title="Doubleheader — game ${g.gameNumber || 1} of 2. Each game is its own card and its own bets: a leg on G1 only cashes on a G1 homer.">G${g.gameNumber || 1} of DH</span>` : ""}</div>
             <div class="venue">${esc(g.venue.name)}${elev ? ` · ${elev} ft` : ""}${m.parkUnknown ? " · no park-factor data (using 100)" : ""}</div>
           </div>
           <div class="gtime">${liveChip}${m.anomaly ? `<span class="badge b-hi" title="MLB lists this game as ${m.anomaly} — the scheduled time shown may no longer be when it actually starts">${m.anomaly}</span> ` : ""}${t} · Total score <b>${fmt1(m.total)}</b></div>
@@ -2211,6 +2434,11 @@ function render(model) {
           ? `<span class="chip" title="HR park factor by batter handedness — this park plays differently for lefty and righty bats">park HR <b>${m.park.hrL}</b> LHB · <b>${m.park.hrR}</b> RHB</span>`
           : `<span class="chip">park HR <b>${m.park.hr}</b></span>`}
         ${wxChips}${roofChip}
+        ${m.dhScore != null && m.dhOther != null ? (m.dhBest && m.dhScore !== m.dhOther
+          ? `<span class="chip hot" title="Of the doubleheader’s two games, THIS one rates better for homers: HR environment at its own first-pitch weather + how homer-prone both starters are (TBD starters count as league average). Re-checks on every refresh as weather and lineups firm up.">🏆 better DH game for HRs — ${m.dhScore} vs ${m.dhOther}</span>`
+          : m.dhScore === m.dhOther
+            ? `<span class="chip" title="Both games of this doubleheader currently rate the same for homers — starters and weather may separate them later; re-checks on every refresh.">DH: both games rate even (${m.dhScore})</span>`
+            : `<span class="chip" title="The other game of this doubleheader rates better for homers right now (better weather window and/or more homer-prone starters). Re-checks on every refresh.">DH: G${(m.g.gameNumber || 1) === 1 ? 2 : 1} rates better — ${m.dhOther} vs ${m.dhScore}</span>`) : ""}
       </div>
       <div class="meters">
         ${meterHTML("Run environment (park + weather)", m.envRun, 85, 125, "Park runs factor plus temperature and wind adjustments")}
@@ -2314,6 +2542,8 @@ async function run() {
   if (!state.dateManual && state.date !== easternISODate()) state.date = easternISODate();
   $("#curdate").textContent = new Date(state.date + "T12:00:00")
     .toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+  const tb = $("#todaybtn");
+  if (tb) tb.disabled = state.date === easternISODate();
   // Show the spinner only on first load or a date change — background refreshes
   // keep the current view (and its open cards) until the new data is ready.
   if (!state.rendered || state.lastDate !== state.date) {
@@ -2332,7 +2562,7 @@ async function run() {
     // stash view state BEFORE render wipes the DOM; the sim re-render restores it
     state.pendingOpenWhy = new Set([...document.querySelectorAll("#simout .whyrow")].map(row => {
       const btn = row.previousElementSibling?.querySelector?.(".whytg");
-      return btn ? btn.dataset.pid + "|" + btn.dataset.mode : null;
+      return btn ? btn.dataset.pid + "|" + (btn.dataset.gpk || "") + "|" + btn.dataset.mode : null;
     }).filter(Boolean));
     state.pendingScrollY = scrollYBefore;
     render(state.model);
@@ -2369,6 +2599,7 @@ async function runSafe() {
 $("#prev").onclick = () => { state.date = shiftDate(state.date, -1); state.dateManual = state.date !== easternISODate(); runSafe(); };
 $("#next").onclick = () => { state.date = shiftDate(state.date, 1); state.dateManual = state.date !== easternISODate(); runSafe(); };
 $("#refresh").onclick = () => runSafe();
+$("#todaybtn").onclick = () => { state.date = easternISODate(); state.dateManual = false; runSafe(); };
 
 // Always-on auto-refresh: every 2 minutes while the tab is visible,
 // plus an immediate refresh when you come back to the tab.
