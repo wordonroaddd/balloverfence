@@ -240,6 +240,10 @@
     .gtime { font-size: 11px; white-space: normal; }
     th, td { font-size: 11.5px; padding-right: 6px; }
     .opt, .oneinn, .rk { display: none; }   /* lower-priority columns hide on phones */
+    .xbtn { font-size: 16px; padding: 8px 6px; margin: -8px 0; }  /* finger-sized ▸ tap target */
+    #simout tbody td { padding-top: 7px; padding-bottom: 7px; }
+    .bbtabs .minibtn { padding: 7px 12px; font-size: 12.5px; }    /* Safe/Balanced/Moonshot tabs */
+    select, input[type="number"], input[type="text"] { font-size: 16px; }  /* stops iOS auto-zoom on focus */
     #simout .tier { display: none; }          /* tier word: color/percent already carry it */
     /* horizontal-swipe tables keep the row's identity pinned on the left */
     #simout .rowctl { position: sticky; left: 0; background: var(--surface-1); z-index: 2;
@@ -277,7 +281,6 @@
     <button id="refresh">Refresh</button>
     <button id="themebtn" title="Switch between light and dark mode">◐ Auto</button>
     <button id="tzbtn" title="Show game times in Eastern or your local time">🕐 ET</button>
-    <button id="syncbtn" title="Copy a link that carries your tickets and scoreboard — open it on another device to transfer them">📲 Sync</button>
   </div>
   <details class="legend">
     <summary>Legend — how to read this board</summary>
@@ -305,33 +308,24 @@
       <div class="term">OPS vs Pen</div><div class="def">His expected numbers against that bullpen, blending his lefty/righty splits by how many innings the pen’s lefties vs righties throw.</div>
       <div class="term">Target</div><div class="def">The one number to rank hitters by: today’s HR environment + how beatable the whole opposing staff is (assumes ~55% of at-bats vs the starter, ~45% vs the pen) + his matchup stats. 100 = average hitter in an average spot; 115+ is a strong play.</div>
 
-      <div class="rule"></div><div class="head">Model lines</div>
-      <div class="term">Proj score / Fair total</div><div class="def">The model’s projected final score and combined runs, from each offense’s quality vs the other side’s full staff, scaled by today’s park + weather. Compare fair total to the book’s over/under — lean over when the book is well under it.</div>
-      <div class="term">Fair ML / −1.5</div><div class="def">Break-even moneyline for each side, and the break-even price on the favorite winning by 2+ (the −1.5 run line). Same rule everywhere: the book paying <i>more</i> than fair = model value.</div>
-
       <div class="rule"></div><div class="head">Home run simulator</div>
       <div class="term">HR prob</div><div class="def">Chance the hitter homers at least once today, from 10,000 simulated games. Typical everyday hitter ≈ 8–12%; elite sluggers in great spots reach 25%+.</div>
       <div class="term">Fair odds</div><div class="def"><b>Calculated from the simulation, not pulled from any sportsbook.</b> It’s the break-even price for the simulated probability (20% ≈ +400, 12% ≈ +733). Compare it to your book: if they offer <i>longer</i> odds than fair, the model sees value; shorter means no edge.</div>
       <div class="term">HR·xHR</div><div class="def">Actual homers · Statcast <i>expected</i> homers, based on how hard and far he’s actually hitting the ball (park-neutral). The sim scales each hitter’s rate by xHR-vs-HR: an unlucky crusher (xHR higher, ↑) gets boosted, a lucky wall-scraper (↓) gets discounted. Capped so it can’t more than roughly ±40% a rate.</div>
       <div class="term">Slot / *</div><div class="def">Lineup position (higher slots bat more often). * = lineup not posted yet, so the sim used the team’s most-used players in projected order.</div>
       <div class="term">L / R / S</div><div class="def">Batting stance, shown next to the hitter’s name. Switch hitters show <b>S</b> with their stronger side bolded (e.g. <b>L</b>S = better numbers batting lefty, by split OPS).</div>
-      <div class="term">▸ and +</div><div class="def">The two small buttons starting every sim row: <b>▸</b> expands a breakdown of exactly why that hitter’s number is what it is (split matchup, park factor for his batting side, weather, Statcast luck, bullpen, per-PA math). <b>+</b> adds him to My ticket in the tracker (✓ = already on it; click again to remove). A 🤖 next to a hitter’s name marks a leg on Pal’s suggested ticket.</div>
+      <div class="term">▸</div><div class="def">The small button starting every sim row expands a breakdown of exactly why that hitter’s number is what it is — split matchup, park factor for his batting side, weather, Statcast luck, form, contact, K-matchup, bullpen, per-PA math, and the calibration guard when it fired. Every number on this board can explain itself; that’s the point.</div>
       <div class="term">LIVE rows</div><div class="def">That game is in progress — the chance covers only the <i>rest</i> of the game (fewer at-bats left, and bullpen arms more likely), so live numbers run lower than pre-game ones.</div>
       <div class="term">Report card</div><div class="def">Once games finish, the model grades itself: every homer actually hit, what chance the model gave that hitter before the game, and whether homer-hitters rated above the day’s average. One day is noise — judge it over weeks.</div>
-      <div class="term">HR parlay tile</div><div class="def">The sim’s top pick from each of the N best games (one per game, so multiplying their chances is roughly valid), with the combined chance and its fair price. Set the legs. <b>Caution:</b> books pay parlays far below fair — this shows what the ticket is <i>worth</i>, and most long parlays are entertainment, not value.</div>
       <div class="term">🎯 Best bets</div><div class="def">The tool’s answer, not just its data: top 4 pre-game picks (one per game) with a plain decision rule — <b>bet at +X or longer</b>, which is fair price plus a 15% cushion; if your book pays less, pass. Three profiles: 🛡 Safe (highest chance), ⚖ Balanced (chance × situational edge), 🚀 Moonshot (long shots with the biggest situational lift).</div>
       <div class="term">🟩 Grid view</div><div class="def">The color-graded matchup board (toggle in the sim controls): every factor the model uses, one shaded cell each — Park (his side), Weather, Starter HR/9, Split edge, xHR luck, Form, Barrels. <b style="color:var(--good)">Green tint = boosts him</b>, <b style="color:var(--hot)">red = hurts him</b>, deeper = stronger. A row glowing red across the board is the “everything aligned” pick; the numbers stay printed in every cell so color is a scanning aid, never the data.</div>
       <div class="term">Heat column</div><div class="def">The at-a-glance version of the recent-signal layers, right in the sim table: 🔥 22% brl = barrels spiking (boosted), ❄ = weak contact or cold results (trimmed), · = no strong signal. Hover any entry for the numbers. This is the “who’s actually hot” read the pick services sell.</div>
+      <div class="term">Calibration guard</div><div class="def">When every factor stacks in a hitter’s favor, raw multiplied edges can claim 40%+ single-game HR chances — numbers real baseball doesn’t produce (the best hitter in the best spot is a low-30s% play). Above 26% the sim’s output is compressed toward a 40% hard ceiling, preserving the ranking but keeping fair prices honest. The ▸ breakdown always shows the raw number next to the calibrated one — nothing is hidden, which is the point: this board is built to survive an audit, not to look exciting.</div>
+      <div class="term">K-matchup</div><div class="def">The “less swing-and-miss” layer: a high-strikeout pitcher steals batted-ball chances from a whiff-prone hitter, while a contact bat facing a low-K arm keeps extra chances to connect. Each hitter’s rate is nudged up to ±8% by the gap between this pitcher’s strikeout rate and league average, scaled by the hitter’s own whiff tendency. Shown in the ▸ breakdown and the grid’s K column.</div>
       <div class="term">Pitcher platoon splits</div><div class="def">The starter’s HR rate is measured against <i>this hitter’s side of the plate</i>, not just overall — a righty who’s a lefty-killer and a righty whom lefties crush now price differently for the same hitter. Shrunk toward his overall rate (platoon splits are noisy) and shown in the ▸ breakdown and the grid’s SP column when it matters.</div>
       <div class="term">Contact quality</div><div class="def">The PropFinder-style signal: each hitter’s barrel rate over the last 14 days of batted balls vs his own season norm (from live Statcast data, cached daily — “contact ✓” in the status bar). A bat that’s suddenly barreling everything gets boosted up to +10% <i>before</i> the homer totals catch up; mushy contact gets trimmed. Dampened by batted-ball count so 5 balls in play prove nothing.</div>
       <div class="term">Form</div><div class="def">Each hitter’s last 15 games nudge his rate up or down (shrunk toward his season rate, dampened by sample size, capped at ±12%, because two hot weeks are mostly noise with a little signal). Hot and cold bats are called out in the ▸ breakdown and in pick reasoning.</div>
-      <div class="term">💵 Cash-out</div><div class="def">Open slips show their live fair cash-out value: potential payout × the current chance every unresolved leg still hits — hit legs count as done, live legs use rest-of-game odds, and it re-prices every refresh. Books offer roughly 75–85% of this number; if your book’s cash-out offer beats our ~80% estimate, taking it is reasonable — if it’s well below fair, you’re paying heavily for certainty. Pre-game it tracks line movement (lineup posts and weather shifting your ticket’s value before first pitch).</div>
-      <div class="term">Singles vs parlay</div><div class="def">Every slip and the builder show what the <b>same legs at the same stake</b> would do as equal straight bets at fair prices. Three 20% picks as a parlay cash ~1 night in 100; as singles, a 1-of-3 night at plus-money is a <b>profit</b>. If your slips keep losing while the singles line keeps winning, the picks are fine — the format is the leak.</div>
-      <div class="term">Pal vs You</div><div class="def">The lifetime scoreboard tile: leg hit rate and tickets won for Pal’s locked picks vs your saved slips, accumulated day by day (only saved slips count — browsing doesn’t). If Pal’s number stays higher for a few weeks, the data is telling you to ride his picks.</div>
-      <div class="term">Ticket tracker</div><div class="def">Two tickets, both graded live: <b>🤖 Pal’s pick</b> — auto-built by conviction score (HR chance × situational lift over the hitter’s neutral baseline, discounted for unposted lineups and TBD starters; expand “Pal’s reasoning” for the per-leg why), locked for the day (survives reloads); when upcoming games run out Pal fills legs from in-progress games at rest-of-game odds, so he always has action until the slate ends — and <b>🧑 My ticket</b>, yours to build with the <b>+</b> on any sim row (✕ removes a leg). <b>💾 Save</b> files your ticket as its own card below the tracker and clears the builder for the next one. Legs turn <b>HIT ✓</b> the moment that hitter homers; tickets read WON or LOST. Adding a hitter who already homered today makes it an <b>“another HR”</b> leg — shown as “(2nd HR)” — which only cashes on a new homer, priced at his rest-of-game odds. Set legs to <b>1</b> for a straight HR bet. Calculators accept American (+12000) or decimal (12.5, DK Pick6-style) odds.</div>
-      <div class="term">✅ PLAY / ⚠ THIN / ✗ PASS</div><div class="def">The one-glance verdict that appears the moment you enter your book’s odds on any ticket: <b>PLAY</b> = the price beats the model’s fair value by 15%+ (real edge), <b>THIN</b> = above fair but inside the model’s error bars, <b>PASS</b> = the book is paying less than the bet is worth. Shown with the expected profit or loss per $1 (EV). This is the only definition of a “good bet” that makes money long-term: not picks that usually hit, but prices that beat probabilities.</div>
-      <div class="term">Round robin</div><div class="def">With 3+ legs in your builder, the payout box also shows the same stake spread across <b>every 2-leg combo</b> (4 legs = 6 combos). Go 2-of-4 and one combo still cashes — roughly a push-to-profit night instead of a dead slip; 3-of-4 cashes three. It trades the single big payout for actually getting paid on partial-hit nights, which are your most common good nights. Prices estimated at fair less a 15% book haircut.</div>
-      <div class="term">🧬 Correlated pair</div><div class="def">Best bets’ correlated play: the best bat from <b>each side of one game</b> — different teams (so it’s legal on pick-em entries that require them), but the same park and the same weather. Those shared conditions move both chances together: a hot, wind-out park lifts both at once, yet every book prices the legs as independent. Pairing correlated legs is the one combo structure where the true combined chance beats what the slip assumes — at any book. <b>＋ leg</b> grows the stack (up to 6): each click adds the next logical hitter — best remaining conviction score, with a preference for bats that share a park with legs already on the stack. <b>↺</b> returns to the core pair; <b>→ my ticket</b> copies the whole stack into your builder to price, save, and track like any slip.</div>
+      <div class="term">🧬 Correlated pair</div><div class="def">Best bets’ correlated play: the best bat from <b>each side of one game</b> — different teams (so it’s legal on pick-em entries that require them), but the same park and the same weather. Those shared conditions move both chances together: a hot, wind-out park lifts both at once, yet every book prices the legs as independent. Pairing correlated legs is the one combo structure where the true combined chance beats what the slip assumes — at any book. <b>＋ leg</b> grows the stack (up to 6): each click adds the next logical hitter — best remaining conviction score, with a preference for bats that share a park with legs already on the stack. <b>↺</b> returns to the core pair.</div>
     </div>
   </details>
   <div id="app"><div class="status"><span class="spin"></span>Loading today’s slate…</div></div>
@@ -696,6 +690,22 @@ function simulateRemainingHR(pEff, expPA, nSims, rng) {
 
 // Which side a hitter bats from against a given pitcher hand
 // (switch hitters take the opposite side of the pitcher).
+// K-matchup (Kasper's "less swing-and-miss" question, as arithmetic): a
+// high-strikeout pitcher steals batted-ball chances from a whiff-prone
+// hitter; a contact bat keeps them. The batter's own K rate is already
+// baked into his HR/PA — only the DEVIATION this pitcher causes matters,
+// so scale his K prob by the pitcher's K rate vs league (dampened) and
+// turn the change in contact chances into a rate multiplier. Capped ±8%.
+function kMatchupFactor(h, pStat) {
+  if (!h || !h.pa || !h.so) return 1;
+  const kB = clamp(h.so / h.pa, 0.05, 0.45);
+  const k9 = parseFloat(pStat?.strikeoutsPer9Inn);
+  if (!k9) return 1;
+  const ratio = clamp(k9 / LG.K9, 0.5, 1.6);
+  const kPA = clamp(kB * Math.pow(ratio, 0.6), 0.03, 0.6);
+  return clamp((1 - kPA) / (1 - kB), 0.92, 1.08);
+}
+
 function battingSideVs(bat, pitcherHand) {
   if (bat === "S") return pitcherHand === "L" ? "R" : "L";
   return bat === "L" || bat === "R" ? bat : "R";
@@ -953,6 +963,7 @@ async function loadSlate(dateISO) {
         name: p.fullName, bat: p.batSide?.code || "?",
         ops: parseFloat(season_.ops) || 0, hr: season_.homeRuns || 0,
         slg: parseFloat(season_.slg) || 0, pa: season_.plateAppearances || 0,
+        so: season_.strikeOuts || 0,
         vsL, vsR, recent,
       };
     }
@@ -1070,7 +1081,8 @@ async function loadSlate(dateISO) {
         }
         hitters[p.id] = { name: p.fullName, bat: p.batSide?.code || "?",
           ops: parseFloat(season_.ops) || 0, hr: season_.homeRuns || 0,
-          slg: parseFloat(season_.slg) || 0, pa: season_.plateAppearances || 0, vsL, vsR, recent };
+          slg: parseFloat(season_.slg) || 0, pa: season_.plateAppearances || 0,
+          so: season_.strikeOuts || 0, vsL, vsR, recent };
       }
     } catch (e) { break; }
   }
@@ -1243,6 +1255,20 @@ function gameLabelOf(g) {
   return g.doubleHeader && g.doubleHeader !== "N" ? `${base} G${g.gameNumber || 1}` : base;
 }
 
+// Calibration guard: multiplicative edges (park × weather × platoon × form ×
+// barrels × K-matchup) can stack into single-game HR probabilities the real
+// world never produces — the best hitter in the best spot is a low-30s%
+// proposition, not 40%+. Below the knee (26%) the sim is trusted as-is;
+// above it, extra probability saturates hyperbolically (asymptote 40%), so
+// ranking is preserved but prices stay honest: a raw 42% reads ~33%, fair
+// +140 becomes ~+200. Raw sim value is kept and shown in the ▸ breakdown —
+// the audit trail is the point.
+function calibrateP(p) {
+  const KNEE = 0.26, K = 0.14;
+  if (!(p > KNEE)) return p;
+  return KNEE + (p - KNEE) * K / (K + (p - KNEE));
+}
+
 /* ---------- HR simulation runner ---------- */
 
 function runHRSim(model, hitters, dateISO, xhrMap = {}, contact = null) {
@@ -1275,11 +1301,13 @@ function runHRSim(model, hitters, dateISO, xhrMap = {}, contact = null) {
         const spRate = pitcherHRperBFvsSide(s.starterStat, s.starterVsLB, s.starterVsRB, side);
         // vs starter: his split for the starter's hand, in the park factor for
         // the side he'll bat from (switch hitters flip to face the pitcher)
-        const pSP = hrProbPA(hitterHRRate(h, s.starterHand) * qual, spRate, envSide(side));
+        const kfSP = kMatchupFactor(h, s.starterStat);
+        const kfPen = kMatchupFactor(h, s.penStat);
+        const pSP = hrProbPA(hitterHRRate(h, s.starterHand) * qual * kfSP, spRate, envSide(side));
         // vs pen: blend facing-LHP and facing-RHP scenarios by the pen's
         // innings mix — each with its own split AND its own park side
-        const pPenVsL = hrProbPA(hitterHRRate(h, "L") * qual, penRate, envSide(battingSideVs(h.bat, "L")));
-        const pPenVsR = hrProbPA(hitterHRRate(h, "R") * qual, penRate, envSide(battingSideVs(h.bat, "R")));
+        const pPenVsL = hrProbPA(hitterHRRate(h, "L") * qual * kfPen, penRate, envSide(battingSideVs(h.bat, "L")));
+        const pPenVsR = hrProbPA(hitterHRRate(h, "R") * qual * kfPen, penRate, envSide(battingSideVs(h.bat, "R")));
         const pPen = s.penMixL * pPenVsL + (1 - s.penMixL) * pPenVsR;
         const expPAFull = EXP_PA_AWAY[clamp(slot, 0, 8)] - (s.isHome ? 0.12 : 0);
         let p;
@@ -1289,6 +1317,8 @@ function runHRSim(model, hitters, dateISO, xhrMap = {}, contact = null) {
         } else {
           p = simulateHitterHR(pSP, pPen, slot, s.isHome, SIM_N, rng);
         }
+        const rawP = p;
+        p = calibrateP(p);
         const hrToday = (m.hrPlays || []).filter(hp => hp.batterId === id).length;
         // baseline: same hitter in a neutral park, average weather, average
         // pitcher — the reference his situational lift is measured against
@@ -1303,7 +1333,8 @@ function runHRSim(model, hitters, dateISO, xhrMap = {}, contact = null) {
             windOut: m.wadj?.out || 0, temp: m.wx?.tempF ?? null,
             spName: s.starterName || null, spHR9: s.starterStat?.homeRunsPer9,
             spSideHR9: (spRate * 38.3).toFixed(2), spSideBF: (side === "L" ? s.starterVsLB : s.starterVsRB)?.bf || 0,
-            spK9: s.starterStat?.strikeoutsPer9Inn,
+            spK9: s.starterStat?.strikeoutsPer9Inn, kfSP, batK: h.pa ? h.so / h.pa : null,
+            rawP: rawP > p + 0.001 ? rawP : null,
             rateVsSP: hitterHRRate(h, s.starterHand) * qual, overallRate: h.pa ? h.hr / h.pa : 0,
             splitRatio: hitterHRRate(h, s.starterHand) / ((h.pa ? h.hr / h.pa : 0) || LG.HRPA),
             penHR9: s.penStat?.homeRunsPer9, penMixL: s.penMixL,
@@ -1370,7 +1401,8 @@ function whyHTML(r) {
   const spDesc = w.spName
     ? `${esc(w.spName)}${w.spHR9 ? ` (${w.spHR9} HR/9, ${w.spK9 || "?"} K/9)` : ""}`
     : "a TBD starter";
-  bits.push(`<b>Matchup:</b> bats ${r.bat === "S" ? `switch — hits ${side} here` : side} vs ${esc(r.spHand)}HP ${spDesc}; his HR rate against that hand is <b>${(w.rateVsSP * 100).toFixed(1)}%</b> per PA (${(w.overallRate * 100).toFixed(1)}% overall).${w.spSideHR9 && w.spHR9 && Math.abs(parseFloat(w.spSideHR9) - parseFloat(w.spHR9)) >= 0.25 ? ` The starter allows <b>${w.spSideHR9} HR/9 to ${side} bats</b> (${w.spHR9} overall${w.spSideBF ? `, ${w.spSideBF} BF` : ""}).` : ""}`);
+  bits.push(`<b>Matchup:</b> bats ${r.bat === "S" ? `switch — hits ${side} here` : side} vs ${esc(r.spHand)}HP ${spDesc}; his HR rate against that hand is <b>${(w.rateVsSP * 100).toFixed(1)}%</b> per PA (${(w.overallRate * 100).toFixed(1)}% overall).${w.spSideHR9 && w.spHR9 && Math.abs(parseFloat(w.spSideHR9) - parseFloat(w.spHR9)) >= 0.25 ? ` The starter allows <b>${w.spSideHR9} HR/9 to ${side} bats</b> (${w.spHR9} overall${w.spSideBF ? `, ${w.spSideBF} BF` : ""}).` : ""}${w.kfSP && Math.abs(w.kfSP - 1) >= 0.02 ? ` K-matchup ${w.kfSP > 1 ? "helps" : "hurts"}: the starter's strikeout rate vs his ${(w.batK * 100).toFixed(0)}% whiff tendency ${w.kfSP > 1 ? "keeps extra batted-ball chances alive" : "steals batted-ball chances"} (<b>${w.kfSP > 1 ? "+" : ""}${Math.round((w.kfSP - 1) * 100)}%</b>).` : ""}`);
+  if (w.rawP) bits.push(`<b>Calibration guard:</b> the raw simulation said <b>${(w.rawP * 100).toFixed(1)}%</b> — every edge lined up, and stacked multipliers overshoot reality. Compressed to <b>${(r.p * 100).toFixed(1)}%</b>; single-game HR chances above the low 30s don’t exist in real baseball, and honest prices matter more than exciting ones.`);
   let pk = `<b>Park &amp; weather:</b> this park plays <b>${w.parkSide}</b> for ${side} bats (100 = neutral)`;
   if (w.roofClosed) pk += `; roof closed, weather neutral.`;
   else {
@@ -1437,6 +1469,7 @@ function gridCells(r) {
   cells.push(shadeCell(((r.xf || 1) - 1) / 0.25, r.xhr != null ? `${r.xf >= 1 ? "+" : ""}${Math.round((r.xf - 1) * 100)}%` : "—", "Statcast xHR luck adjustment"));
   cells.push(shadeCell(((r.ff || 1) - 1) / 0.12, r.recent ? `${r.recent.hr}/15g` : "—", "HR count over his last 15 games (form adjustment)"));
   cells.push(shadeCell(((r.ct?.cf || 1) - 1) / 0.10, r.ct?.bbe >= 10 ? `${(r.ct.recentBrl * 100).toFixed(0)}%` : "—", "Barrel rate last 14 days vs his season norm (contact adjustment)"));
+  cells.push(shadeCell(((w.kfSP || 1) - 1) / 0.08, w.kfSP ? `${w.kfSP >= 1 ? "+" : ""}${Math.round((w.kfSP - 1) * 100)}%` : "—", "K-matchup: this starter's strikeout rate vs the hitter's whiff tendency — green keeps batted-ball chances alive, red steals them"));
   return cells.join("");
 }
 
@@ -1500,7 +1533,7 @@ function renderSimResults(allResults, team = "ALL") {
     <div class="tscroll"><table style="margin-top:8px"><thead><tr><th></th>
       <th class="rk" title="Rank across the whole slate">Rank</th><th class="namh">Hitter</th><th>Game</th>
       ${state.simView === "grid"
-        ? `<th class="gc" title="Park HR factor for his side">Park</th><th class="gc" title="Weather HR points">Wx</th><th class="gc" title="Starter HR/9">SP</th><th class="gc" title="Split edge vs this hand">Split</th><th class="gc" title="xHR luck">xHR</th><th class="gc" title="HR last 15 games">Form</th><th class="gc" title="Barrel rate last 14 days">Brl</th>`
+        ? `<th class="gc" title="Park HR factor for his side">Park</th><th class="gc" title="Weather HR points">Wx</th><th class="gc" title="Starter HR/9">SP</th><th class="gc" title="Split edge vs this hand">Split</th><th class="gc" title="xHR luck">xHR</th><th class="gc" title="HR last 15 games">Form</th><th class="gc" title="Barrel rate last 14 days">Brl</th><th class="gc" title="K-matchup: starter strikeout rate vs hitter whiff tendency">K</th>`
         : `<th class="num opt" title="Batting order position — higher up bats more often">Bats</th>
       <th class="opt" title="Starting pitcher's throwing hand">Starter</th>
       <th class="xhr opt" title="Actual homers · Statcast expected homers">HR · xHR</th>
@@ -1508,11 +1541,6 @@ function renderSimResults(allResults, team = "ALL") {
       <th class="num" title="Chance of at least one homer today">HR chance</th>
       <th class="num" title="Break-even sportsbook price for that chance — not a real line">Fair price</th><th class="tier"></th></tr></thead>
     <tbody>${(() => {
-      const myKeys = new Set((getMyTicket()?.picks || []).map(pk => pk.pid + "|" + (pk.gpk ?? "")));
-      const palLock = storeGet(PARLAY_KEY);
-      const palKeys = new Set(palLock && palLock.date === state.date ? palLock.picks.map(pk => pk.pid + "|" + (pk.gpk ?? "")) : []);
-      const isPal = r => palKeys.has(r.pid + "|" + (r.gpk ?? "")) || palKeys.has(r.pid + "|");
-      const canBet = state.date >= easternISODate(); // today or a future slate
       return shown.map(r => {
       const [word, cls] = simTier(r.p);
       const luck = r.xhr == null ? "" : r.xf > 1.05 ? '<span style="color:var(--hot)" title="unlucky — boosted">↑</span>'
@@ -1521,8 +1549,8 @@ function renderSimResults(allResults, team = "ALL") {
       const stanceHTML = st.code === "S"
         ? ` <span class="stance" title="Switch hitter — bolded letter is his stronger side (by split OPS)">${st.dom ? "<b>" + st.dom + "</b>" : ""}S</span>`
         : st.code && st.code !== "?" ? ` <span class="stance" title="Bats ${st.code === "L" ? "left" : "right"}-handed">${st.code}</span>` : "";
-      return `<tr><td class="rowctl"><button class="xbtn whytg" data-pid="${r.pid}" data-gpk="${r.gpk ?? ""}" data-mode="${esc(r.mode)}" title="Why? — expand the breakdown">▸</button>${canBet ? `<button class="xbtn addtg" data-pid="${r.pid}" data-gpk="${r.gpk ?? ""}" data-mode="${esc(r.mode)}" title="${myKeys.has(r.pid + "|" + (r.gpk ?? "")) ? "On my ticket — click to remove" : "Add to my ticket"}">${myKeys.has(r.pid + "|" + (r.gpk ?? "")) ? "✓" : "+"}</button>` : ""}</td>
-        <td class="rk">#${results.indexOf(r) + 1}</td><td class="name">${esc(r.name)}${stanceHTML}${isPal(r) && r.mode !== "final" ? ' <span class="palmark" title="Pal’s pick — this hitter is a leg on Pal’s suggested ticket">🤖</span>' : ""}${r.projected ? " *" : ""}${r.mode === "live" ? ' <span class="livedot" title="Game in progress — chance covers the rest of the game only"></span>' : ""}</td>
+      return `<tr><td class="rowctl"><button class="xbtn whytg" data-pid="${r.pid}" data-gpk="${r.gpk ?? ""}" data-mode="${esc(r.mode)}" title="Why? — expand the breakdown">▸</button></td>
+        <td class="rk">#${results.indexOf(r) + 1}</td><td class="name">${esc(r.name)}${stanceHTML}${r.projected ? " *" : ""}${r.mode === "live" ? ' <span class="livedot" title="Game in progress — chance covers the rest of the game only"></span>' : ""}</td>
         <td>${esc(r.game)}</td>${state.simView === "grid" ? gridCells(r) : `<td class="num opt">${ordinal(r.slot)}</td><td class="opt">${r.spHand === "L" ? "Lefty" : r.spHand === "R" ? "Righty" : "TBD"}</td>
         <td class="xhr opt"><span class="xa">${r.seasonHR}</span><span class="xsep">·</span><span class="xb">${r.xhr != null ? r.xhr.toFixed(0) : "—"}</span><span class="xar">${luck}</span></td>
         <td class="heat">${heatCell(r)}</td>`}
@@ -1553,22 +1581,13 @@ function renderSimResults(allResults, team = "ALL") {
     const r = results.find(x => String(x.pid) === btn.dataset.pid && String(x.gpk ?? "") === (btn.dataset.gpk ?? "") && x.mode === btn.dataset.mode);
     const row = document.createElement("tr");
     row.className = "whyrow";
-    row.innerHTML = `<td colspan="14">${whyHTML(r)}</td>`;
+    row.innerHTML = `<td colspan="15">${whyHTML(r)}</td>`;
     tr.after(row);
     btn.textContent = "▾";
   };
   document.querySelectorAll("#simout .whytg").forEach(btn => {
     btn.onclick = () => expandWhy(btn);
     if (openWhy.has(btn.dataset.pid + "|" + (btn.dataset.gpk || "") + "|" + btn.dataset.mode)) expandWhy(btn);
-  });
-  // + adds a hitter to (or ✓ removes him from) my ticket
-  document.querySelectorAll("#simout .addtg").forEach(btn => btn.onclick = () => {
-    const r = results.find(x => String(x.pid) === btn.dataset.pid && String(x.gpk ?? "") === btn.dataset.gpk && x.mode === btn.dataset.mode);
-    if (!r) return;
-    if (btn.textContent === "✓") removeFromMyTicket(r.pid, r.gpk ?? null);
-    else addToMyTicket(r);
-    renderSimResults(allResults, team);
-    renderParlay(state.simResults);
   });
 }
 
@@ -1809,6 +1828,89 @@ function setSaved(entry) {
   storeSet(SAVED_KEY, all);
 }
 
+// ---- Rival tracker: paste any capper's daily picks, grade them honestly ----
+const RIVAL_KEY = "slatepal_rival";
+function getRival() {
+  const r = ticketStoreFor(RIVAL_KEY)[state.date];
+  return r && r.picks ? r : null;
+}
+function setRival(entry) {
+  const all = ticketStoreFor(RIVAL_KEY);
+  if (entry) all[state.date] = entry; else delete all[state.date];
+  storeSet(RIVAL_KEY, all);
+}
+// Match pasted names to slate hitters. Accent/case-insensitive; accepts full
+// names or unique last names. Returns matched legs + names it couldn't place.
+function normName(s) {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+}
+function matchRivalNames(text, results) {
+  const rank = { pre: 0, live: 1, final: 2 };
+  const byKey = {};
+  for (const r of results) {
+    const k = r.pid + "|" + (r.gpk ?? "");
+    if (!byKey[k] || rank[r.mode] < rank[byKey[k].mode]) byKey[k] = r;
+  }
+  const cands = Object.values(byKey);
+  const picks = [], misses = [], seen = new Set();
+  for (const raw of text.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean)) {
+    const q = normName(raw.replace(/\bg2\b|\bgame 2\b/gi, ""));
+    if (!q) continue;
+    let hits = cands.filter(r => normName(r.name) === q);
+    if (!hits.length) hits = cands.filter(r => normName(r.name).split(" ").pop() === q.split(" ").pop());
+    if (!hits.length) hits = cands.filter(r => normName(r.name).includes(q));
+    // doubleheader: same player twice — default G1, honor an explicit "G2"
+    if (hits.length === 2 && hits[0].pid === hits[1].pid) {
+      const wantG2 = /\bg2\b|\bgame 2\b/i.test(raw);
+      hits = [[...hits].sort((a, b) => (a.gpk || 0) - (b.gpk || 0))[wantG2 ? 1 : 0]];
+    }
+    if (hits.length === 1) {
+      const r = hits[0], k = r.pid + "|" + (r.gpk ?? "");
+      if (seen.has(k)) continue;
+      seen.add(k);
+      picks.push({ pid: r.pid, name: r.name, game: r.game, gpk: r.gpk, p: r.p, baseHR: r.hrToday || 0 });
+    } else misses.push(raw + (hits.length > 1 ? " (ambiguous — use the full name)" : " (not found on this slate)"));
+  }
+  return { picks, misses };
+}
+function renderRival(results) {
+  const body = $("#rivalbody"), sum = $("#rivalsum");
+  if (!body || !results) return;
+  const rv = getRival();
+  const t = recordTotals(storeGet(RECORD_KEY) || {});
+  const pct = (h, l) => l ? Math.round(h / l * 100) + "%" : "—";
+  const lifetime = t.rival.legs
+    ? `<p class="note" style="margin-top:8px"><b>Rival lifetime:</b> ${t.rival.hits}/${t.rival.legs} legs (${pct(t.rival.hits, t.rival.legs)}) over ${t.rival.days} day${t.rival.days > 1 ? "s" : ""} — vs Pal ${pct(t.pal.hits, t.pal.legs)} · You ${pct(t.you.hits, t.you.legs)}. Judge after 2–3 weeks, not 2–3 nights.</p>` : "";
+  if (rv && rv.picks.length) {
+    const g = gradeParlay(rv.picks, state.model || []);
+    if (sum) sum.innerHTML = `${rv.label ? esc(rv.label) + " · " : ""}${g.hits}/${rv.picks.length} hit`;
+    const expHits = rv.picks.reduce((a, p) => a + p.p, 0);
+    body.innerHTML = `<p class="note" style="margin:2px 0 6px">${esc(rv.label || "Rival")}’s picks for this slate — graded live, same rules as your slips (a pick only cashes on a homer in its own game).</p>
+      ${ticketTableHTML(g.legs, false)}
+      <p class="note" style="margin-top:6px">Model’s read on these picks: expected hits tonight <b>${expHits.toFixed(1)}</b> of ${rv.picks.length} — beating that says the picks carry signal; matching it says they’re what the public data already knew.</p>
+      ${rv.misses?.length ? `<p class="note">Couldn’t place: ${esc(rv.misses.join("; "))}</p>` : ""}
+      ${lifetime}
+      <button id="rivalclear" class="minibtn" style="margin-top:6px">✕ Clear this slate’s picks</button>`;
+    const rc = $("#rivalclear");
+    if (rc) rc.onclick = () => { setRival(null); renderRival(results); };
+  } else {
+    if (sum) sum.textContent = "—";
+    body.innerHTML = `<p class="note" style="margin:2px 0 6px">Paste a capper’s picks for this slate (from Twitter/Discord) — one name per line or comma-separated. Last names work when unique; add “G2” after a name for game 2 of a doubleheader. They grade live against real homers and build a lifetime record next to Pal’s and yours — the honest test of whether the picks you’re tempted to tail actually hit.</p>
+      <input id="rivallabel" type="text" placeholder="Who? (e.g. Kasper)" style="margin-bottom:6px; width:180px">
+      <textarea id="rivalnames" rows="4" style="width:100%; max-width:420px; display:block" placeholder="Judge&#10;Ohtani&#10;Elly De La Cruz"></textarea>
+      <button id="rivalsave" class="minibtn" style="margin-top:6px">＋ Track these picks</button>
+      <div id="rivalmiss" class="note" style="margin-top:6px"></div>
+      ${lifetime}`;
+    const rs = $("#rivalsave");
+    if (rs) rs.onclick = () => {
+      const { picks, misses } = matchRivalNames($("#rivalnames").value, results);
+      if (!picks.length) { $("#rivalmiss").innerHTML = misses.length ? "No matches: " + esc(misses.join("; ")) : "Paste at least one name."; return; }
+      setRival({ label: ($("#rivallabel").value || "Rival").trim().slice(0, 24), picks, misses });
+      renderRival(results);
+    };
+  }
+}
+
 // ---- Pal vs You lifetime record (per-day snapshots, pruned at 60 days) ----
 const RECORD_KEY = "slatepal_record";
 function updateRecord() {
@@ -1817,11 +1919,17 @@ function updateRecord() {
   const lock = storeGet(PARLAY_KEY);
   if (lock && lock.date === state.date && lock.picks?.length) {
     const g = gradeParlay(lock.picks, state.model || []);
-    entry.pal = { legs: lock.picks.length, hits: g.hits, won: g.ticket === "cashed" ? 1 : 0 };
+    entry.pal = { legs: lock.picks.length, hits: g.hits, won: g.ticket === "cashed" ? 1 : 0,
+      exp: lock.picks.reduce((a, r) => a * r.p, 1) };
+  }
+  const rv = getRival();
+  if (rv && rv.picks.length) {
+    const g = gradeParlay(rv.picks, state.model || []);
+    entry.rival = { legs: rv.picks.length, hits: g.hits };
   }
   const saved = getSaved();
   if (saved.tickets.length) {
-    let legs = 0, hits = 0, won = 0, plParlay = 0, plSingles = 0;
+    let legs = 0, hits = 0, won = 0, plParlay = 0, plSingles = 0, expWon = 0;
     for (const tk of saved.tickets) {
       const g = gradeParlay(tk.picks, state.model || []);
       legs += tk.picks.length; hits += g.hits;
@@ -1831,12 +1939,13 @@ function updateRecord() {
       const winProfit = pay.bookProfit ?? pay.fairProfit;
       if (g.ticket === "cashed") { won++; plParlay += winProfit; }
       else if (g.ticket === "busted") plParlay -= stake;
+      expWon += p;
       const sp = singlesPL(g.legs, stake);
       if (sp) plSingles += sp.pl;
     }
-    entry.you = { tickets: saved.tickets.length, legs, hits, won, plParlay, plSingles };
+    entry.you = { tickets: saved.tickets.length, legs, hits, won, plParlay, plSingles, expWon };
   }
-  if (entry.pal || entry.you) {
+  if (entry.pal || entry.you || entry.rival) {
     all[state.date] = entry;
     const cutoff = shiftDate(easternISODate(), -60);
     for (const k of Object.keys(all)) if (k < cutoff) delete all[k];
@@ -1845,11 +1954,13 @@ function updateRecord() {
   return all;
 }
 function recordTotals(all) {
-  const t = { pal: { legs: 0, hits: 0, won: 0, days: 0 }, you: { legs: 0, hits: 0, won: 0, tickets: 0, plParlay: 0, plSingles: 0 } };
+  const t = { pal: { legs: 0, hits: 0, won: 0, days: 0, exp: 0 }, you: { legs: 0, hits: 0, won: 0, tickets: 0, plParlay: 0, plSingles: 0, expWon: 0 },
+    rival: { legs: 0, hits: 0, days: 0 } };
   for (const e of Object.values(all || {})) {
-    if (e.pal) { t.pal.legs += e.pal.legs; t.pal.hits += e.pal.hits; t.pal.won += e.pal.won; t.pal.days++; }
+    if (e.pal) { t.pal.legs += e.pal.legs; t.pal.hits += e.pal.hits; t.pal.won += e.pal.won; t.pal.days++; t.pal.exp += e.pal.exp || 0; }
+    if (e.rival) { t.rival.legs += e.rival.legs; t.rival.hits += e.rival.hits; t.rival.days++; }
     if (e.you) { t.you.legs += e.you.legs; t.you.hits += e.you.hits; t.you.won += e.you.won; t.you.tickets += e.you.tickets;
-      t.you.plParlay += e.you.plParlay || 0; t.you.plSingles += e.you.plSingles || 0; }
+      t.you.plParlay += e.you.plParlay || 0; t.you.plSingles += e.you.plSingles || 0; t.you.expWon += e.you.expWon || 0; }
   }
   return t;
 }
@@ -1862,7 +1973,7 @@ function renderRecordTile() {
   v.innerHTML = `${pct(t.pal.hits, t.pal.legs)} · ${pct(t.you.hits, t.you.legs)}`;
   const money = t.you.legs
     ? `<br>your $ — as slips <b style="color:${t.you.plParlay >= 0 ? "var(--good)" : "var(--hot)"}">${t.you.plParlay >= 0 ? "+" : "−"}$${Math.abs(t.you.plParlay).toFixed(0)}</b> · same legs as singles <b style="color:${t.you.plSingles >= 0 ? "var(--good)" : "var(--hot)"}">${t.you.plSingles >= 0 ? "+" : "−"}$${Math.abs(t.you.plSingles).toFixed(0)}</b>` : "";
-  d.innerHTML = `legs hit — Pal ${t.pal.hits}/${t.pal.legs} (${t.pal.won} won) · You ${t.you.hits}/${t.you.legs} (${t.you.won} won)${money}`;
+  d.innerHTML = `legs hit — Pal ${t.pal.hits}/${t.pal.legs} (${t.pal.won} won, ${t.pal.exp.toFixed(1)} expected) · You ${t.you.hits}/${t.you.legs} (${t.you.won} won, ${t.you.expWon.toFixed(1)} expected)${money}`;
 }
 
 /* ---- shared ticket UI pieces ---- */
@@ -2035,6 +2146,18 @@ function renderParlay(results) {
   body.innerHTML = `
     ${lock || !isToday ? (isToday ? "" : `<p class="note" style="margin-bottom:6px">Viewing a different date — Pal’s slip is a preview and won’t be tracked.</p>`) : ""}
     <div class="sliprow">${palSlip}${savedSlips}</div>
+    ${palOk && p > 0 ? (() => {
+      const nights = Math.max(2, Math.round(1 / p));
+      let h = `<p class="note" style="margin:6px 0 0">⏱ <b>Honest cadence:</b> this ${picks.length}-leg ticket should cash about <b>1 night in ${nights}</b> — over a 30-night month that's ~${(30 * p).toFixed(1)} wins. Zero over a full month means the model is off; zero over a week means nothing.`;
+      if (picks.length > 2) {
+        const two = buildTicket(results, 2);
+        if (two.length === 2) {
+          const p2 = two[0].p * two[1].p;
+          h += ` ⚡ The same board as a <b>2-leg</b> (${two.map(t => esc(t.name.split(" ").pop())).join(" + ")}) cashes ~1 in ${Math.max(2, Math.round(1 / p2))} nights — set legs to 2 for hit mode.`;
+        }
+      }
+      return h + `</p>`;
+    })() : ""}
     ${palOk ? `<details class="targets"><summary>Pal’s reasoning — why these legs</summary>
       <p class="note" style="margin-top:4px"><b>The method:</b> every hitter gets a conviction score = HR chance × <i>situational lift</i> — how much today’s park (for his batting side), weather, and pitcher matchup raise him above his own neutral-conditions baseline. That deliberately prefers a good hitter in a great spot over a famous hitter in an ordinary one, because season-total reputation is what the public (and the books’ shading) already price in — situational lift is where the perception gap lives. Scores are discounted 20% for unposted lineups (he might not play) and 10% for TBD starters, then Pal takes the top-scoring hitter from each of the strongest games, one per game so multiplying the chances stays roughly valid.</p>
       ${picks.map(pk => `<div class="note" style="margin:5px 0"><b>${esc(pk.name)}</b> — ${pk.reason || "picked on probability (locked before reasoning was added — re-locks tomorrow)"}</div>`).join("")}
@@ -2084,6 +2207,7 @@ function renderParlay(results) {
     setSaved(s2);
     renderParlay(results);
   });
+  renderRival(results);
   const sb = $("#savemybtn");
   if (sb) sb.onclick = () => {
     const t = getMyTicket();
@@ -2211,7 +2335,7 @@ function renderBestBets(results) {
   const medals = ["\u{1F947}", "\u{1F948}", "\u{1F949}", "4️⃣"];
   const blurb = mode === "safe" ? "Highest chance to homer — short odds, hits most often."
     : mode === "moonshot" ? "Long shots with real reasons — big payouts, biggest situational edge."
-    : "Best blend of chance and situational edge — Pal’s conviction picks.";
+    : "Best blend of chance and situational edge — the board’s conviction picks.";
   el.innerHTML = `<div class="section-h" style="margin-top:4px">\u{1F3AF} Today’s best bets</div>
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px">
@@ -2251,7 +2375,6 @@ function renderBestBets(results) {
               <button id="stackadd" class="minibtn"${legs.length >= 6 ? " disabled" : ""} title="Add the next logical leg — best remaining conviction, favoring bats that share the stack’s park">＋ leg</button>
               ${legs.length > 2 ? '<button id="stackreset" class="minibtn" title="Back to the core pair">↺</button>' : ""}
             </div>
-            <div style="margin-top:4px"><button id="stackto" class="minibtn" title="Copy every stack leg into My ticket builder">→ my ticket</button></div>
           </div>
         </div>`;
       })()}
@@ -2262,14 +2385,6 @@ function renderBestBets(results) {
   if (sa) sa.onclick = () => { state.stackLegs = clamp((state.stackLegs || 2) + 1, 2, 6); renderBestBets(results); };
   const sr = el.querySelector("#stackreset");
   if (sr) sr.onclick = () => { state.stackLegs = 2; renderBestBets(results); };
-  const stb = el.querySelector("#stackto");
-  if (stb) stb.onclick = () => {
-    const byKey = {};
-    for (const r of results) if (r.mode === "pre") byKey[r.pid + "|" + (r.gpk ?? "")] ??= r;
-    for (const k of state.stackPids || []) if (byKey[k]) addToMyTicket(byKey[k]);
-    renderParlay(results);
-    if (state.simResults) renderSimResults(state.simResults, state.simTeam || "ALL");
-  };
 }
 
 function renderReportCard(rc) {
@@ -2337,27 +2452,9 @@ function render(model) {
     <div class="tile"><div class="k">Best run env</div><div class="v">${fmt1(best.envRun)}</div><div class="d">${esc(best.g.venue.name)}</div></div>
     <div class="tile"><div class="k">Best HR env</div><div class="v">${fmt1(hottest.envHR)}</div><div class="d">${esc(hottest.g.venue.name)}</div></div>
     <div class="tile"><div class="k">Scale</div><div class="v">100</div><div class="d">= league average</div></div>
-    <div class="tile" id="pvyoutile" title="Lifetime scoreboard: Pal’s locked picks vs your saved slips — leg hit rates and tickets won. The honest answer to whose picks are better.">
-      <div class="k">Pal vs You</div>
-      <div class="v" id="pvyou-v">—</div>
-      <div class="d" id="pvyou-d">builds as tickets settle</div>
-    </div>
-    <div class="tile" id="parlaytile">
-      <div class="k">HR ticket · <label for="legs">legs</label>
-        <input id="legs" type="number" min="1" max="8" value="${state.parlayLegs || 3}"></div>
-      <div class="v" id="parlayodds">—</div>
-      <div class="d" id="parlaylist">picks load with the sim…</div>
-      <button id="parlayinfobtn" class="ibtn" title="How this is calculated" aria-label="How the parlay is calculated">i</button>
-    </div>
   </div>
   <div id="bestbets"></div>
-  <details class="card gamecard" data-key="parlay"${isOpen("parlay", true) ? " open" : ""} style="margin:-4px 0 14px">
-    <summary><div class="row1">
-      <div class="matchup" style="font-size:13px">🎟 Tickets — Pal’s pick &amp; my slips</div>
-      <div class="gtime" id="parlaysum"></div>
-    </div></summary>
-    <div id="parlaybody" class="note">Waiting for the simulation…</div>
-  </details>`;
+  `;
 
   // HR simulator first — runs automatically for games that haven't started
   html += `<div class="section-h" style="margin-top:4px">Home run simulator</div>
@@ -2366,41 +2463,6 @@ function render(model) {
     <button id="simbtn" style="margin-top:8px">⚾ Re-run HR simulation</button>
     <div id="simout"></div>
   </div>`;
-
-  // Model lines — sportsbook-style odds board for games that haven't started
-  if (upcoming.length) {
-    html += `<div class="section-h">Model lines — totals &amp; run lines</div>
-    <details class="card gamecard" data-key="mlines"${isOpen("mlines", false) ? " open" : ""}>
-      <summary>
-        <div class="row1">
-          <div class="matchup" style="font-size:13px">Fair prices for ${upcoming.length} upcoming game${upcoming.length > 1 ? "s" : ""}</div>
-          <div class="gtime">model prices, not sportsbook lines</div>
-        </div>
-      </summary>
-      <div class="mlrow mlheader"><span></span><span>ML</span><span>Total</span><span>RL</span></div>
-      ${upcoming.map(m => {
-        const L = modelLines(m);
-        const aAb = m.g.teams.away.team.abbreviation || "AWY", hAb = m.g.teams.home.team.abbreviation || "HME";
-        const gt = fmtGameTime(m.g.gameDate);
-        const tot = L.total.toFixed(1);
-        const row = (ab, pWin, isFav, ou) => `
-          <div class="mlrow">
-            <span class="mlteam">${esc(ab)}</span>
-            <span class="oddcell"><b>${fairOdds(pWin)}</b></span>
-            <span class="oddcell"><b>${ou}${tot}</b><small>fair</small></span>
-            <span class="oddcell"><b>${isFav ? "-1.5" : "+1.5"}</b><small>${fairOdds(isFav ? L.pFavCover : 1 - L.pFavCover)}</small></span>
-          </div>`;
-        return `<div class="mlgame">
-          <div class="mlhead">${esc(aAb)} @ ${esc(hAb)}${m.g.doubleHeader && m.g.doubleHeader !== "N" ? ` <span class="note">G${m.g.gameNumber || 1}</span>` : ""} <span class="note">· ${gt} · proj ${L.expA.toFixed(1)}–${L.expH.toFixed(1)}</span></div>
-          ${row(aAb, 1 - L.pHome, !L.favHome, "o")}
-          ${row(hAb, L.pHome, L.favHome, "u")}
-        </div>`;
-      }).join("")}
-      <p class="note" style="margin-top:8px">These are the model’s <b>break-even</b> prices, not real lines — at the fair total, over and under are a coin flip.
-      Book total well below fair leans over (and vice versa); a book moneyline or run line paying <i>more</i> than fair has model value.
-      Margins use a normal approximation (σ≈4 runs) — built to spot <i>big</i> gaps, not ±10¢ ones.</p>
-    </details>`;
-  }
 
   html += `<div class="section-h" style="display:flex;justify-content:space-between;align-items:baseline">
     <span>Games (${active.length})</span>
@@ -2498,8 +2560,6 @@ function render(model) {
         state.simResults = runHRSim(state.model, state.hitters, state.date, state.xhr, state.contact);
         renderSimResults(state.simResults, state.simTeam || "ALL");
         renderBestBets(state.simResults);
-        renderParlay(state.simResults);
-        renderRecordTile();
         renderReportCard(buildReportCard(state.model, state.simResults));
       }
       finally {
@@ -2511,17 +2571,6 @@ function render(model) {
     }, 30);
   };
   $("#simbtn").onclick = doSim;
-  const legsInput = $("#legs");
-  if (legsInput) legsInput.onchange = () => {
-    state.parlayLegs = clamp(parseInt(legsInput.value, 10) || 3, 1, 8);
-    legsInput.value = state.parlayLegs;
-    renderParlay(state.simResults);
-  };
-  const pib = $("#parlayinfobtn");
-  if (pib) pib.onclick = () => {
-    const d = document.querySelector('details[data-key="parlay"]');
-    if (d) d.open = !d.open;
-  };
   doSim(); // auto-run on load — picks table + report card are the headline views
 
   const xall = $("#xall");
@@ -2626,20 +2675,7 @@ applyTheme(); // light by default
   try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
   if (ok) state.syncedNote = true;
 })();
-$("#syncbtn").onclick = async () => {
-  const base = location.href.split("#")[0];
-  const link = base + "#s=" + packSync();
-  const btn = $("#syncbtn");
-  try {
-    await navigator.clipboard.writeText(link);
-    btn.textContent = "✓ link copied — open it on your other device";
-  } catch (e) {
-    prompt("Copy this link and open it on your other device:", link);
-    btn.textContent = "📲 Sync";
-    return;
-  }
-  setTimeout(() => { btn.textContent = "📲 Sync"; }, 4000);
-};
+/* sync removed in public build */
 
 // timezone preference (persisted)
 state.tz = storeGet("slatepal_tz") || "ET";
