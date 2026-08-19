@@ -320,6 +320,8 @@
       <div class="term">🎯 Best bets</div><div class="def">The tool’s answer, not just its data: top 4 pre-game picks (one per game) with a plain decision rule — <b>bet at +X or longer</b>, which is fair price plus a 15% cushion; if your book pays less, pass. Three profiles: 🛡 Safe (highest chance), ⚖ Balanced (chance × situational edge), 🚀 Moonshot (long shots with the biggest situational lift).</div>
       <div class="term">🟩 Grid view</div><div class="def">The color-graded matchup board (toggle in the sim controls): every factor the model uses, one shaded cell each — Park (his side), Weather, Starter HR/9, Split edge, xHR luck, Form, Barrels. <b style="color:var(--good)">Green tint = boosts him</b>, <b style="color:var(--hot)">red = hurts him</b>, deeper = stronger. A row glowing red across the board is the “everything aligned” pick; the numbers stay printed in every cell so color is a scanning aid, never the data.</div>
       <div class="term">Heat column</div><div class="def">The at-a-glance version of the recent-signal layers, right in the sim table: 🔥 22% brl = barrels spiking (boosted), ❄ = weak contact or cold results (trimmed), · = no strong signal. Hover any entry for the numbers. This is the “who’s actually hot” read the pick services sell.</div>
+      <div class="term">📈 Calibration receipts</div><div class="def">The accountability ledger: every prediction for a finished game is bucketed (“model said 15–20%”) and graded against whether the hitter actually homered, accumulating day after day. Over hundreds of games each bucket’s actual rate should match its label — that’s the whole test of whether the percentages are real, it updates automatically, and it can’t be edited after the fact. No pick service on earth publishes this; this board grades itself in public.</div>
+      <div class="term">Starter form</div><div class="def">The “who is the pitcher <i>lately</i>” layer: each starter’s last three starts (HR allowed per batter faced) versus his own season norm, shrunk hard — three starts are a hint, not a verdict — capped at −20%/+25%, and multiplied into his platoon-adjusted rate. A gopher-balling ace or a suddenly locked-in journeyman moves every hitter in that game.</div>
       <div class="term">Calibration guard</div><div class="def">When every factor stacks in a hitter’s favor, raw multiplied edges can claim 40%+ single-game HR chances — numbers real baseball doesn’t produce (the best hitter in the best spot is a low-30s% play). Above 26% the sim’s output is compressed toward a 40% hard ceiling, preserving the ranking but keeping fair prices honest. The ▸ breakdown always shows the raw number next to the calibrated one — nothing is hidden, which is the point: this board is built to survive an audit, not to look exciting.</div>
       <div class="term">K-matchup</div><div class="def">The “less swing-and-miss” layer: a high-strikeout pitcher steals batted-ball chances from a whiff-prone hitter, while a contact bat facing a low-K arm keeps extra chances to connect. Each hitter’s rate is nudged up to ±8% by the gap between this pitcher’s strikeout rate and league average, scaled by the hitter’s own whiff tendency. Shown in the ▸ breakdown and the grid’s K column.</div>
       <div class="term">Pitcher platoon splits</div><div class="def">The starter’s HR rate is measured against <i>this hitter’s side of the plate</i>, not just overall — a righty who’s a lefty-killer and a righty whom lefties crush now price differently for the same hitter. Shrunk toward his overall rate (platoon splits are noisy) and shown in the ▸ breakdown and the grid’s SP column when it matters.</div>
@@ -706,6 +708,17 @@ function kMatchupFactor(h, pStat) {
   return clamp((1 - kPA) / (1 - kB), 0.92, 1.08);
 }
 
+// Starter recent form: is he giving up bombs LATELY? Last-3-starts HR/BF vs
+// his own season rate, shrunk with a 120-BF prior (3 starts ≈ 70 BF, so
+// recent evidence gets ~35% weight), capped ±20/25%. Multiplies the platoon-
+// adjusted rate, so it measures the TIME dimension only — no double count.
+function starterFormFactor(recent3, seasonStat) {
+  const base = pitcherHRperBF(seasonStat);
+  if (!recent3 || !recent3.bf || !base) return 1;
+  const blended = (recent3.hr + base * 120) / (recent3.bf + 120);
+  return clamp(blended / base, 0.8, 1.25);
+}
+
 function battingSideVs(bat, pitcherHand) {
   if (bat === "S") return pitcherHand === "L" ? "R" : "L";
   return bat === "L" || bat === "R" ? bat : "R";
@@ -908,11 +921,15 @@ async function loadSlate(dateISO) {
   if (pids.length) {
     const pd = await getJSON(
       `https://statsapi.mlb.com/api/v1/people?personIds=${pids.join(",")}` +
-      `&hydrate=stats(group=[pitching],type=[season,statSplits],sitCodes=[vl,vr],season=${season})`);
+      `&hydrate=stats(group=[pitching],type=[season,statSplits,lastXGames],sitCodes=[vl,vr],limit=3,season=${season})`);
     for (const p of pd.people || []) {
-      let seasonStat = null, vsLB = null, vsRB = null;
+      let seasonStat = null, vsLB = null, vsRB = null, recent3 = null;
       for (const st of p.stats || []) {
         if (st.type?.displayName === "season") seasonStat = st.splits?.[0]?.stat || null;
+        else if (st.type?.displayName === "lastXGames") {
+          const rs = st.splits?.[0]?.stat;
+          if (rs) recent3 = { hr: rs.homeRuns || 0, bf: rs.battersFaced || 0, gs: rs.gamesStarted || 0 };
+        }
         else if (st.type?.displayName === "statSplits") {
           for (const sp of st.splits || []) {
             const o = { hr: sp.stat?.homeRuns || 0, bf: sp.stat?.battersFaced || sp.stat?.plateAppearances || 0 };
@@ -923,7 +940,7 @@ async function loadSlate(dateISO) {
       }
       pitchers[p.id] = {
         name: p.fullName, hand: p.pitchHand?.code || "?",
-        stat: seasonStat, vsLB, vsRB,
+        stat: seasonStat, vsLB, vsRB, recent3,
       };
     }
   }
@@ -1167,6 +1184,7 @@ function buildModel(data) {
         team: g.teams[side].team.abbreviation || g.teams[side].team.name,
         starterHand: oppP?.hand, starterName: oppP?.name, starterStat: oppP?.stat || null,
         starterVsLB: oppP?.vsLB || null, starterVsRB: oppP?.vsRB || null,
+        starterRecent3: oppP?.recent3 || null,
         penStat: oppPen?.stat || null, penMixL: oppPen?.mixL ?? LG_PEN_LHP_SHARE,
       });
     }
@@ -1298,7 +1316,8 @@ function runHRSim(model, hitters, dateISO, xhrMap = {}, contact = null) {
         const qual = xf * ff * ct.cf;
         const side = battingSideVs(h.bat, s.starterHand);
         // the starter's HR rate against THIS hitter's side, not his overall
-        const spRate = pitcherHRperBFvsSide(s.starterStat, s.starterVsLB, s.starterVsRB, side);
+        const sff = starterFormFactor(s.starterRecent3, s.starterStat);
+        const spRate = pitcherHRperBFvsSide(s.starterStat, s.starterVsLB, s.starterVsRB, side) * sff;
         // vs starter: his split for the starter's hand, in the park factor for
         // the side he'll bat from (switch hitters flip to face the pitcher)
         const kfSP = kMatchupFactor(h, s.starterStat);
@@ -1335,6 +1354,7 @@ function runHRSim(model, hitters, dateISO, xhrMap = {}, contact = null) {
             spSideHR9: (spRate * 38.3).toFixed(2), spSideBF: (side === "L" ? s.starterVsLB : s.starterVsRB)?.bf || 0,
             spK9: s.starterStat?.strikeoutsPer9Inn, kfSP, batK: h.pa ? h.so / h.pa : null,
             rawP: rawP > p + 0.001 ? rawP : null,
+            sff, spR3: s.starterRecent3 || null,
             rateVsSP: hitterHRRate(h, s.starterHand) * qual, overallRate: h.pa ? h.hr / h.pa : 0,
             splitRatio: hitterHRRate(h, s.starterHand) / ((h.pa ? h.hr / h.pa : 0) || LG.HRPA),
             penHR9: s.penStat?.homeRunsPer9, penMixL: s.penMixL,
@@ -1402,6 +1422,7 @@ function whyHTML(r) {
     ? `${esc(w.spName)}${w.spHR9 ? ` (${w.spHR9} HR/9, ${w.spK9 || "?"} K/9)` : ""}`
     : "a TBD starter";
   bits.push(`<b>Matchup:</b> bats ${r.bat === "S" ? `switch — hits ${side} here` : side} vs ${esc(r.spHand)}HP ${spDesc}; his HR rate against that hand is <b>${(w.rateVsSP * 100).toFixed(1)}%</b> per PA (${(w.overallRate * 100).toFixed(1)}% overall).${w.spSideHR9 && w.spHR9 && Math.abs(parseFloat(w.spSideHR9) - parseFloat(w.spHR9)) >= 0.25 ? ` The starter allows <b>${w.spSideHR9} HR/9 to ${side} bats</b> (${w.spHR9} overall${w.spSideBF ? `, ${w.spSideBF} BF` : ""}).` : ""}${w.kfSP && Math.abs(w.kfSP - 1) >= 0.02 ? ` K-matchup ${w.kfSP > 1 ? "helps" : "hurts"}: the starter's strikeout rate vs his ${(w.batK * 100).toFixed(0)}% whiff tendency ${w.kfSP > 1 ? "keeps extra batted-ball chances alive" : "steals batted-ball chances"} (<b>${w.kfSP > 1 ? "+" : ""}${Math.round((w.kfSP - 1) * 100)}%</b>).` : ""}`);
+  if (w.sff && Math.abs(w.sff - 1) >= 0.03 && w.spR3) bits.push(`<b>Starter form:</b> over his last ${w.spR3.gs || 3} starts he’s allowed <b>${w.spR3.hr} HR in ${w.spR3.bf} batters</b> — ${w.sff > 1 ? "worse than his season norm, so his HR rate here is raised" : "stingier than his season norm, so his HR rate here is trimmed"} <b>${w.sff > 1 ? "+" : ""}${Math.round((w.sff - 1) * 100)}%</b> (shrunk hard; three starts are a hint, not a verdict).`);
   if (w.rawP) bits.push(`<b>Calibration guard:</b> the raw simulation said <b>${(w.rawP * 100).toFixed(1)}%</b> — every edge lined up, and stacked multipliers overshoot reality. Compressed to <b>${(r.p * 100).toFixed(1)}%</b>; single-game HR chances above the low 30s don’t exist in real baseball, and honest prices matter more than exciting ones.`);
   let pk = `<b>Park &amp; weather:</b> this park plays <b>${w.parkSide}</b> for ${side} bats (100 = neutral)`;
   if (w.roofClosed) pk += `; roof closed, weather neutral.`;
@@ -2387,6 +2408,64 @@ function renderBestBets(results) {
   if (sr) sr.onclick = () => { state.stackLegs = 2; renderBestBets(results); };
 }
 
+/* ---- Calibration receipts: every finished-game prediction, bucketed and
+   graded, accumulated forever. Idempotent per date (recomputed from the
+   day's final games and overwritten), so refreshes never double-count. ---- */
+const CAL_KEY = "slatepal_calibration";
+const CAL_BUCKETS = [
+  { lo: 0.00, hi: 0.05, label: "under 5%" },
+  { lo: 0.05, hi: 0.10, label: "5–10%" },
+  { lo: 0.10, hi: 0.15, label: "10–15%" },
+  { lo: 0.15, hi: 0.20, label: "15–20%" },
+  { lo: 0.20, hi: 0.25, label: "20–25%" },
+  { lo: 0.25, hi: 1.01, label: "25%+" },
+];
+function calBucket(p) {
+  for (let i = 0; i < CAL_BUCKETS.length; i++) if (p < CAL_BUCKETS[i].hi) return i;
+  return CAL_BUCKETS.length - 1;
+}
+function updateCalibration(results) {
+  const finals = (results || []).filter(r => r.mode === "final");
+  if (!finals.length) return;
+  const day = {};
+  for (const r of finals) {
+    const b = calBucket(r.p);
+    (day[b] ??= [0, 0]);
+    day[b][0]++;
+    if ((r.hrToday || 0) > 0) day[b][1]++;
+  }
+  const all = storeGet(CAL_KEY) || {};
+  all[state.date] = day; // overwrite: idempotent per slate-date
+  storeSet(CAL_KEY, all);
+}
+function renderCalibration() {
+  const el = $("#calout");
+  if (!el) return;
+  const all = storeGet(CAL_KEY) || {};
+  const days = Object.keys(all);
+  const agg = {};
+  for (const d of days) for (const [b, v] of Object.entries(all[d])) {
+    (agg[b] ??= [0, 0]); agg[b][0] += v[0]; agg[b][1] += v[1];
+  }
+  const total = Object.values(agg).reduce((a, v) => a + v[0], 0);
+  if (!total) { el.innerHTML = ""; return; }
+  const rows = CAL_BUCKETS.map((bk, i) => {
+    const [nn, hh] = agg[i] || [0, 0];
+    if (!nn) return "";
+    const act = hh / nn, mid = (bk.lo + Math.min(bk.hi, 0.32)) / 2;
+    const off = act - mid;
+    const verdictish = nn < 100 ? `<span class="note">small sample</span>`
+      : `<b style="color:${Math.abs(off) <= 0.03 ? "var(--good)" : "var(--hot)"}">${Math.abs(off) <= 0.03 ? "on target" : (off > 0 ? "runs hot" : "runs cold")}</b>`;
+    return `<tr><td>model said <b>${bk.label}</b></td><td class="num">${nn}</td><td class="num"><b>${(act * 100).toFixed(1)}%</b></td><td>${verdictish}</td></tr>`;
+  }).join("");
+  el.innerHTML = `<div class="card">
+    <div style="font-weight:700; font-size:13px; margin-bottom:6px">📈 Calibration receipts — do the percentages mean what they say?</div>
+    <p class="note">Every finished-game prediction this device has seen, graded and accumulated: <b>${total.toLocaleString()}</b> hitter-games over <b>${days.length}</b> slate day${days.length > 1 ? "s" : ""}. If a bucket’s actual rate tracks its label over hundreds of games, the model is honest there — that’s the entire test, and it can’t be faked after the fact.</p>
+    <div class="tscroll"><table><thead><tr><th>Prediction</th><th class="num">Hitter-games</th><th class="num">Actually homered</th><th>Read</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="note" style="margin-top:6px">Buckets under ~100 games wobble by luck alone — judge nothing before a few hundred. Retro-scored with current-season stats, so a small hindsight bias exists early in a day’s accumulation; it washes out with volume. Stored in this browser only.</p>
+  </div>`;
+}
+
 function renderReportCard(rc) {
   const el = $("#rcout");
   if (!el || !rc) return;
@@ -2548,6 +2627,7 @@ function render(model) {
       </details>`;
     }).join("");
   }
+  html += `<div id="calout"></div>`; // calibration ledger renders whenever history exists
   app.innerHTML = html;
 
   const doSim = () => {
@@ -2561,6 +2641,8 @@ function render(model) {
         renderSimResults(state.simResults, state.simTeam || "ALL");
         renderBestBets(state.simResults);
         renderReportCard(buildReportCard(state.model, state.simResults));
+        updateCalibration(state.simResults);
+        renderCalibration();
       }
       finally {
         btn.disabled = false; btn.textContent = "⚾ Re-run HR simulation";
